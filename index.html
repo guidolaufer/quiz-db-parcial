@@ -1,0 +1,1213 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+  <title>Quiz — Bases de Datos 2</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      min-height: 100vh;
+      padding: 1.5rem 1rem 3rem;
+    }
+
+    header { text-align: center; margin-bottom: 2rem; }
+    header h1 { font-size: clamp(1.3rem, 5vw, 1.8rem); color: #7dd3fc; margin-bottom: 0.3rem; }
+    header p  { color: #94a3b8; font-size: 0.88rem; }
+
+    /* Progress */
+    #progress-bar-wrap { max-width: 680px; margin: 0 auto 1.5rem; }
+    #progress-label {
+      display: flex; justify-content: space-between;
+      font-size: 0.78rem; color: #64748b; margin-bottom: 0.4rem;
+    }
+    #progress-bar { height: 6px; background: #1e293b; border-radius: 99px; overflow: hidden; }
+    #progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #3b82f6, #7dd3fc);
+      border-radius: 99px; transition: width 0.4s ease; width: 0%;
+    }
+
+    /* Card */
+    .card {
+      background: #1e293b; border: 1px solid #334155;
+      border-radius: 14px; padding: 1.4rem;
+      max-width: 680px; margin: 0 auto 1rem;
+    }
+    .card .badge {
+      display: inline-block; font-size: 0.68rem; font-weight: 700;
+      letter-spacing: 0.07em; text-transform: uppercase;
+      padding: 0.18rem 0.55rem; border-radius: 99px; margin-bottom: 0.9rem;
+    }
+    .badge.mongo     { background: #14532d; color: #86efac; }
+    .badge.cassandra { background: #1e3a5f; color: #93c5fd; }
+    .badge.teoria    { background: #3b1f5e; color: #c4b5fd; }
+    .badge.neo4j     { background: #3b2a0f; color: #fcd34d; }
+
+    .card h2 {
+      font-size: clamp(0.92rem, 3.5vw, 1.05rem);
+      line-height: 1.6; margin-bottom: 1.1rem; color: #f1f5f9;
+    }
+
+    /* Code */
+    pre {
+      background: #0f172a; border: 1px solid #1e293b; border-radius: 8px;
+      padding: 0.75rem 0.9rem; font-size: 0.75rem; overflow-x: auto;
+      margin-bottom: 1rem; line-height: 1.6; color: #e2e8f0;
+    }
+    code { font-family: 'Fira Code', 'Cascadia Code', ui-monospace, monospace; }
+
+    /* Options */
+    .options { display: flex; flex-direction: column; gap: 0.6rem; }
+    .option {
+      display: flex; align-items: flex-start; gap: 0.8rem;
+      background: #0f172a; border: 1.5px solid #334155;
+      border-radius: 10px; padding: 0.8rem 0.9rem;
+      cursor: pointer; transition: border-color 0.15s, background 0.15s;
+      user-select: none;
+    }
+    .option:active:not(.disabled) { background: #172033; }
+    @media (hover: hover) {
+      .option:hover:not(.disabled) { border-color: #3b82f6; background: #172033; }
+    }
+    .option .letter {
+      flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%;
+      background: #1e293b; border: 1.5px solid #475569;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.76rem; font-weight: 700; color: #94a3b8;
+      transition: all 0.15s;
+    }
+    .option .text { font-size: clamp(0.82rem, 3vw, 0.88rem); line-height: 1.5; color: #cbd5e1; }
+    .option .text pre { margin: 0.35rem 0 0; font-size: 0.73rem; }
+
+    .option.correct            { border-color: #22c55e; background: #052e16; }
+    .option.correct .letter    { background: #22c55e; border-color: #22c55e; color: #fff; }
+    .option.wrong              { border-color: #ef4444; background: #2d0a0a; }
+    .option.wrong .letter      { background: #ef4444; border-color: #ef4444; color: #fff; }
+    .option.dimmed             { opacity: 0.38; }
+    .option.disabled           { cursor: default; }
+
+    /* Feedback */
+    .feedback {
+      display: none; margin-top: 1rem; padding: 0.9rem 1rem;
+      border-radius: 10px; font-size: clamp(0.82rem, 3vw, 0.88rem); line-height: 1.6;
+    }
+    .feedback.show { display: block; }
+    .feedback.ok   { background: #052e16; border: 1px solid #16a34a; color: #86efac; }
+    .feedback.fail { background: #2d0a0a; border: 1px solid #dc2626; color: #fca5a5; }
+    .feedback strong { display: block; margin-bottom: 0.3rem; font-size: 0.93rem; }
+
+    /* Nav buttons */
+    .btn-row { display: flex; gap: 0.6rem; margin-top: 1rem; }
+    .btn-prev {
+      flex: 0 0 auto; padding: 0.75rem 1rem;
+      background: #1e293b; color: #94a3b8;
+      border: 1.5px solid #334155; border-radius: 10px;
+      font-size: 0.9rem; font-weight: 600; cursor: pointer;
+      transition: background 0.15s; display: none;
+      min-height: 44px;
+    }
+    .btn-prev:active { background: #273548; }
+    @media (hover: hover) { .btn-prev:hover { background: #273548; border-color: #475569; } }
+    .btn-prev.show { display: block; }
+
+    .btn-next {
+      flex: 1; padding: 0.75rem;
+      background: #3b82f6; color: #fff;
+      border: none; border-radius: 10px;
+      font-size: 0.9rem; font-weight: 600; cursor: pointer;
+      transition: background 0.15s; display: none;
+      min-height: 44px;
+    }
+    .btn-next:active { background: #2563eb; }
+    @media (hover: hover) { .btn-next:hover { background: #2563eb; } }
+    .btn-next.show { display: block; }
+
+    /* Score screen */
+    #score-screen {
+      display: none; text-align: center; max-width: 680px; margin: 0 auto;
+      background: #1e293b; border: 1px solid #334155;
+      border-radius: 14px; padding: 2.5rem 1.5rem;
+    }
+    #score-screen h2  { font-size: 1.4rem; color: #7dd3fc; margin-bottom: 0.5rem; }
+    #score-screen .big { font-size: clamp(2.5rem, 10vw, 3.5rem); font-weight: 800; color: #f1f5f9; margin: 0.8rem 0; }
+    #score-screen p   { color: #94a3b8; margin-bottom: 1.5rem; font-size: 0.92rem; }
+
+    /* Breakdown */
+    .breakdown { display: flex; justify-content: center; gap: 0.8rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+    .breakdown-item {
+      background: #0f172a; border: 1px solid #334155; border-radius: 10px;
+      padding: 0.6rem 1rem; font-size: 0.8rem; color: #94a3b8;
+    }
+    .breakdown-item span { display: block; font-size: 1.2rem; font-weight: 700; color: #f1f5f9; margin-bottom: 0.1rem; }
+
+    .btn-restart {
+      padding: 0.8rem 2rem; background: #3b82f6; color: #fff;
+      border: none; border-radius: 10px; font-size: 1rem; font-weight: 600;
+      cursor: pointer; min-height: 44px;
+    }
+    .btn-restart:active { background: #2563eb; }
+    @media (hover: hover) { .btn-restart:hover { background: #2563eb; } }
+
+    /* Mobile tweaks */
+    @media (max-width: 480px) {
+      body { padding: 1rem 0.75rem 4rem; }
+      .card { padding: 1.1rem; border-radius: 12px; }
+      pre { font-size: 0.7rem; padding: 0.65rem 0.75rem; }
+      .option { padding: 0.7rem 0.8rem; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Quiz — Bases de Datos 2</h1>
+  <p>NoSQL · CAP · ACID/BASE · Fragmentación · MongoDB · Cassandra · Neo4j</p>
+</header>
+
+<div id="progress-bar-wrap">
+  <div id="progress-label">
+    <span id="prog-text">Pregunta 1</span>
+    <span id="score-text">0 correctas</span>
+  </div>
+  <div id="progress-bar"><div id="progress-fill"></div></div>
+</div>
+
+<div id="quiz-container"></div>
+
+<div id="score-screen">
+  <h2>Resultado final</h2>
+  <div class="big" id="final-score"></div>
+  <p id="final-msg"></p>
+  <div class="breakdown" id="breakdown"></div>
+  <button class="btn-restart" onclick="restart()">Volver a intentar</button>
+</div>
+
+<script>
+const questions = [
+
+  // ══════════════════════════════════════════════════════════
+  // MONGODB — FIND Y PROYECCIONES
+  // ══════════════════════════════════════════════════════════
+  {
+    db:"mongo",
+    q:"¿Cuál consulta devuelve <strong>solo</strong> <code>customerid</code> y <code>total</code> (sin <code>_id</code>) de las órdenes <code>pending</code>?",
+    options:[
+      {code:`db.orders.find({ status:"pending" },{ customerid:1, total:1 })`},
+      {code:`db.orders.find({ status:"pending" },{ customerid:1, total:1, _id:0 })`},
+      {code:`db.orders.find({ customerid:1, total:1 },{ status:"pending" })`},
+      {code:`db.orders.find({ status:"pending" }).project({ customerid, total })`},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> <code>_id</code> se incluye por defecto — hay que excluirlo con <code>_id:0</code>. En c) los argumentos están invertidos. <code>.project()</code> no existe en el shell de MongoDB."
+  },
+  {
+    db:"mongo",
+    q:"¿Qué devuelve <code>db.orders.find({}).sort({ total:-1 }).skip(5).limit(3)</code>?",
+    options:[
+      {text:"Las 3 órdenes con mayor total"},
+      {text:"Las órdenes en posición 6°, 7° y 8° ordenadas por total descendente"},
+      {text:"Las 3 órdenes con menor total"},
+      {text:"Error — skip y limit no se pueden encadenar"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> Ordena por total descendente, saltea las primeras 5, devuelve las 3 siguientes. Es paginación — equivale a la página 2 con tamaño de página 5."
+  },
+  {
+    db:"mongo",
+    q:"¿Cuál consulta devuelve las <strong>3 órdenes más antiguas</strong> con <code>status = \"delivered\"</code>?",
+    options:[
+      {code:`db.orders.find({ status:"delivered" }).sort({ orderDate:-1 }).limit(3)`},
+      {code:`db.orders.find({ status:"delivered" }).sort({ orderDate:1 }).limit(3)`},
+      {code:`db.orders.find({ status:"delivered" }).limit(3)`},
+      {code:`db.orders.find({ status:"delivered" }).sort({ orderDate:1 }).skip(3)`},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> <code>orderDate:1</code> es ascendente (más antiguo primero). <code>-1</code> sería descendente (más reciente primero). c) no garantiza orden. d) saltea en vez de limitar."
+  },
+
+  // ══════════════════════════════════════════════════════════
+  // MONGODB — OPERADORES LÓGICOS Y COMPARACIÓN
+  // ══════════════════════════════════════════════════════════
+  {
+    db:"mongo",
+    q:"Querés órdenes cuyo <code>total</code> sea mayor a 500 <strong>o</strong> cuyo <code>status</code> sea <code>\"cancelled\"</code>. ¿Cuál es correcta?",
+    options:[
+      {code:`db.orders.find({ total:{ $gt:500 }, status:"cancelled" })`},
+      {code:`db.orders.find({ $or:[{ total:{ $gt:500 } },{ status:"cancelled" }] })`},
+      {code:`db.orders.find({ $and:[{ total:{ $gt:500 } },{ status:"cancelled" }] })`},
+      {code:`db.orders.find({ total:{ $gt:500 } || status:"cancelled" })`},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> <code>$or</code> recibe un array de condiciones. a) usa AND implícito — ambas deben cumplirse. c) es AND explícito. d) no es sintaxis JS/JSON válida."
+  },
+  {
+    db:"mongo",
+    q:"¿Cuándo es <strong>obligatorio</strong> usar <code>$and</code> explícito en vez del AND implícito (coma)?",
+    options:[
+      {text:"Cuando hay más de 3 condiciones"},
+      {text:"Cuando las condiciones están sobre campos distintos"},
+      {text:"Cuando tenés dos condiciones sobre el mismo campo que no se pueden combinar en un objeto"},
+      {text:"Nunca — $and y la coma siempre son intercambiables"},
+    ],
+    correct:2,
+    explanation:"<strong>c) es correcta.</strong> En JS un objeto no puede tener dos claves iguales — la segunda pisa a la primera. Ejemplo: <code>{ total:{$gt:50}, total:{$lt:200} }</code> solo aplica la segunda. Con <code>$and</code> explícito ambas se evalúan."
+  },
+  {
+    db:"mongo",
+    q:"¿Cuál consulta devuelve órdenes con <code>total</code> entre 50 y 200 <strong>inclusive</strong>?",
+    options:[
+      {code:`db.orders.find({ total:{ $gt:50, $lt:200 } })`},
+      {code:`db.orders.find({ total:{ $gte:50, $lte:200 } })`},
+      {code:`db.orders.find({ total:{ $between:[50,200] } })`},
+      {code:`db.orders.find({ total:50, total:200 })`},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> <code>$gte</code> y <code>$lte</code> son inclusivos. a) excluye los extremos con <code>$gt</code>/<code>$lt</code>. <code>$between</code> no existe en MongoDB. d) la segunda clave pisa a la primera."
+  },
+  {
+    db:"mongo",
+    q:"¿Cuál consulta devuelve órdenes donde <code>status</code> no sea <code>\"cancelled\"</code>?",
+    options:[
+      {code:`db.orders.find({ status:{ $not:"cancelled" } })`},
+      {code:`db.orders.find({ status:{ $ne:"cancelled" } })`},
+      {code:`db.orders.find({ $nor:[{ status:"cancelled" }] })`},
+      {code:`db.orders.find({ status:{ $nin:"cancelled" } })`},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> <code>$ne</code> es 'not equal'. <code>$not</code> requiere un operador adentro, no un valor directo. <code>$nor</code> también funciona pero es más verboso. <code>$nin</code> requiere un array como argumento."
+  },
+  {
+    db:"mongo",
+    q:"¿Qué hace <code>$exists: true</code> en una consulta MongoDB?",
+    options:[
+      {text:"Devuelve documentos donde el campo tiene valor truthy (no null, no 0)"},
+      {text:"Devuelve documentos donde el campo existe en el documento, sin importar su valor"},
+      {text:"Devuelve documentos donde el campo tiene un índice creado"},
+      {text:"Es equivalente a != null"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> <code>{ campo:{ $exists:true } }</code> devuelve documentos que tienen el campo definido, aunque su valor sea <code>null</code>, <code>0</code> o <code>false</code>. En MongoDB los documentos son flexibles — un campo puede directamente no existir en un documento."
+  },
+
+  // ══════════════════════════════════════════════════════════
+  // MONGODB — ARRAYS
+  // ══════════════════════════════════════════════════════════
+  {
+    db:"mongo",
+    q:"El campo <code>tags</code> es un array. ¿Cuál consulta devuelve documentos donde <code>tags</code> contenga <code>\"express\"</code>?",
+    options:[
+      {code:`db.orders.find({ tags:{ $contains:"express" } })`},
+      {code:`db.orders.find({ tags:"express" })`},
+      {code:`db.orders.find({ tags:{ $in:"express" } })`},
+      {code:`db.orders.find({ tags:{ $elemMatch:"express" } })`},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> En MongoDB, comparar un campo array con un escalar busca si ese valor está contenido en el array. <code>$contains</code> no existe. <code>$in</code> requiere un array de valores. <code>$elemMatch</code> con escalar es inválido."
+  },
+  {
+    db:"mongo",
+    q:"¿Cuál consulta devuelve documentos donde <code>tags</code> contenga <strong>tanto</strong> <code>\"express\"</code> <strong>como</strong> <code>\"fragile\"</code>?",
+    options:[
+      {code:`db.orders.find({ tags:{ $in:["express","fragile"] } })`},
+      {code:`db.orders.find({ tags:{ $all:["express","fragile"] } })`},
+      {code:`db.orders.find({ tags:["express","fragile"] })`},
+      {code:`db.orders.find({ $and:[{ tags:"express" },{ tags:"fragile" }] })`},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> <code>$all</code> requiere que el array contenga <em>todos</em> los valores. <code>$in</code> devuelve documentos que contengan <em>alguno</em>. c) busca el array exacto sin otros elementos. d) también funciona pero es más verboso."
+  },
+
+  // ══════════════════════════════════════════════════════════
+  // MONGODB — ÍNDICES
+  // ══════════════════════════════════════════════════════════
+  {
+    db:"mongo",
+    q:"Tenés <code>db.orders.find({ status:'PAID' }).sort({ orderDate:-1 })</code>. ¿Cuál índice la optimiza mejor?",
+    options:[
+      {code:`{ orderDate:-1 }`},
+      {code:`{ status:1 }`},
+      {code:`{ status:1, orderDate:-1 }`},
+      {code:`{ orderDate:-1, status:1 }`},
+    ],
+    correct:2,
+    explanation:"<strong>c) es correcta.</strong> En índices compuestos: primero los campos de igualdad (<code>status</code>), luego los de orden/rango (<code>orderDate</code>). d) tiene el orden invertido — no cubre eficientemente el filtro por status."
+  },
+  {
+    db:"mongo",
+    q:"¿Cuál afirmación sobre índices en MongoDB es <strong>falsa</strong>?",
+    options:[
+      {text:"Crear demasiados índices penaliza las escrituras"},
+      {text:"El índice en _id se crea automáticamente"},
+      {text:"Una consulta sin índice lanza error en MongoDB"},
+      {text:"Un índice TTL elimina documentos automáticamente al vencer"},
+    ],
+    correct:2,
+    explanation:"<strong>c) es la falsa.</strong> MongoDB permite consultas sin índice — hace un collection scan (lento) pero no lanza error. Cassandra sí lanza error ante filtros sin PK ni índice."
+  },
+  {
+    db:"mongo",
+    q:"El índice compuesto <code>{ a:1, b:1, c:1 }</code>. ¿Cuáles consultas cubre?",
+    options:[
+      {text:"Solo consultas que filtren por los tres campos a la vez"},
+      {text:"Consultas que filtren por {a}, {a,b} o {a,b,c} — pero NO por {b} o {c} solos"},
+      {text:"Cualquier combinación de a, b y c sin importar el orden"},
+      {text:"Solo consultas que usen los tres campos en el WHERE"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> Los índices compuestos siguen la regla del prefijo: cubren consultas que usen un prefijo continuo desde la izquierda. <code>{a}</code>, <code>{a,b}</code> y <code>{a,b,c}</code> están cubiertos. <code>{b}</code> o <code>{c}</code> solos no."
+  },
+
+  // ══════════════════════════════════════════════════════════
+  // MONGODB — AGGREGATION
+  // ══════════════════════════════════════════════════════════
+  {
+    db:"mongo",
+    q:"¿Cuál pipeline cuenta la cantidad de órdenes por <code>status</code>?",
+    options:[
+      {code:`db.orders.aggregate([
+  { $group:{ _id:"$status", count:{ $sum:1 } } }
+])`},
+      {code:`db.orders.aggregate([
+  { $count:"status" }
+])`},
+      {code:`db.orders.aggregate([
+  { $group:{ status:"$status" } },
+  { $count:1 }
+])`},
+      {code:`db.orders.find({}).groupBy("status")`},
+    ],
+    correct:0,
+    explanation:"<strong>a) es correcta.</strong> <code>$group</code> requiere un <code>_id</code> que define el campo de agrupación y acumuladores como <code>$sum:1</code> para contar. <code>$count</code> cuenta el total sin agrupar. <code>.groupBy()</code> no existe."
+  },
+  {
+    db:"mongo",
+    q:"¿Cuál pipeline devuelve el <strong>total promedio por status</strong>, solo para órdenes con <code>total > 50</code>?",
+    options:[
+      {code:`db.orders.aggregate([
+  { $group:{ _id:"$status", avg:{ $avg:"$total" } } },
+  { $match:{ total:{ $gt:50 } } }
+])`},
+      {code:`db.orders.aggregate([
+  { $match:{ total:{ $gt:50 } } },
+  { $group:{ _id:"$status", avg:{ $avg:"$total" } } }
+])`},
+      {code:`db.orders.aggregate([
+  { $avg:"$total" },
+  { $group:{ _id:"$status" } }
+])`},
+      {code:`db.orders.find({ total:{ $gt:50 } }).groupBy("status").avg("total")`},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> <code>$match</code> debe ir <em>antes</em> de <code>$group</code> para filtrar primero y reducir el trabajo del agrupamiento. En a) el <code>$match</code> después del <code>$group</code> ya no puede filtrar por <code>total</code> porque ese campo fue agrupado."
+  },
+  {
+    db:"mongo",
+    q:"¿Cuál pipeline hace un JOIN entre <code>orders</code> y <code>customers</code> para traer el nombre del cliente?",
+    options:[
+      {code:`db.orders.aggregate([
+  { $join:{ from:"customers",
+    localField:"customerid",
+    foreignField:"_id", as:"cliente" } }
+])`},
+      {code:`db.orders.aggregate([
+  { $lookup:{ from:"customers",
+    localField:"customerid",
+    foreignField:"_id", as:"cliente" } }
+])`},
+      {code:`db.orders.find({}).populate("customers")`},
+      {code:`db.orders.aggregate([{ $merge:"customers" }])`},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> <code>$lookup</code> es el operador de join en MongoDB. <code>$join</code> no existe. <code>.populate()</code> es de Mongoose (ODM). <code>$merge</code> escribe resultados en otra colección."
+  },
+  {
+    db:"mongo",
+    q:"¿Qué hace el operador <code>$project</code> en un pipeline de agregación?",
+    options:[
+      {text:"Filtra documentos que cumplan una condición, como un WHERE"},
+      {text:"Permite incluir, excluir o transformar campos en la salida — equivale a la proyección de find()"},
+      {text:"Agrupa documentos por un campo dado"},
+      {text:"Ordena los documentos del pipeline"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> <code>$project</code> en aggregation es equivalente al segundo argumento de <code>find()</code> — define qué campos aparecen en la salida. Además puede crear campos calculados: <code>{ $project:{ total:1, iva:{ $multiply:[\"$total\",0.21] } } }</code>."
+  },
+
+  // ══════════════════════════════════════════════════════════
+  // MONGODB — MODELADO
+  // ══════════════════════════════════════════════════════════
+  {
+    db:"mongo",
+    q:"¿Cuándo conviene usar el modelo <strong>embebido</strong> en MongoDB en vez de referenciado?",
+    options:[
+      {text:"Cuando los datos relacionados se consultan juntos casi siempre y el tamaño del documento embebido es acotado"},
+      {text:"Cuando la misma entidad es compartida por muchos documentos distintos (ej: un catálogo de productos)"},
+      {text:"Cuando hay relaciones M:N entre las entidades"},
+      {text:"Cuando se necesitan transacciones multi-documento"},
+    ],
+    correct:0,
+    explanation:"<strong>a) es correcta.</strong> El modelo embebido es ideal cuando los datos se consultan juntos siempre (no se necesita join) y el tamaño es manejable. b), c) y d) son casos donde el modelo referenciado es más adecuado."
+  },
+  {
+    db:"mongo",
+    q:"¿Qué ventaja principal tiene el modelo <strong>embebido</strong> respecto a la atomicidad?",
+    options:[
+      {text:"Requiere transacciones multi-documento para ser atómico"},
+      {text:"Todas las actualizaciones dentro del mismo documento son atómicas sin necesidad de transacciones"},
+      {text:"Solo es atómico si el documento tiene menos de 16MB"},
+      {text:"La atomicidad depende del write concern configurado"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> En MongoDB, una operación sobre un único documento es siempre atómica. Si todos los datos relacionados están en el mismo documento (modelo embebido), se pueden actualizar todos en una sola operación sin transacciones."
+  },
+
+  // ══════════════════════════════════════════════════════════
+  // CASSANDRA — WHERE Y PARTITION KEY
+  // ══════════════════════════════════════════════════════════
+  {
+    db:"cassandra",
+    q:`Dada la tabla:
+<pre>CREATE TABLE ventas (
+  tienda_id text,
+  fecha     date,
+  vendedor  text,
+  total     decimal,
+  PRIMARY KEY (tienda_id, fecha)
+);</pre>
+¿Cuál consulta es válida <strong>sin</strong> ALLOW FILTERING?`,
+    options:[
+      {code:`SELECT * FROM ventas WHERE fecha = '2024-03-01';`},
+      {code:`SELECT * FROM ventas WHERE tienda_id = 'T1' AND total > 100;`},
+      {code:`SELECT * FROM ventas WHERE tienda_id = 'T1' AND fecha >= '2024-01-01';`},
+      {code:`SELECT * FROM ventas WHERE vendedor = 'Juan';`},
+    ],
+    correct:2,
+    explanation:"<strong>c) es correcta.</strong> Incluye la partition key completa (<code>tienda_id</code>) y filtra por la clustering key (<code>fecha</code>). a) omite la partition key. b) filtra por columna normal sin índice → error. d) <code>vendedor</code> no es PK."
+  },
+  {
+    db:"cassandra",
+    q:`Misma tabla <code>PRIMARY KEY (tienda_id, fecha)</code>. ¿Cuál <code>ORDER BY</code> es válido?`,
+    options:[
+      {code:`SELECT * FROM ventas WHERE tienda_id = 'T1' ORDER BY total DESC;`},
+      {code:`SELECT * FROM ventas WHERE tienda_id = 'T1' ORDER BY vendedor ASC;`},
+      {code:`SELECT * FROM ventas WHERE tienda_id = 'T1' ORDER BY fecha DESC;`},
+      {code:`SELECT * FROM ventas ORDER BY fecha DESC;`},
+    ],
+    correct:2,
+    explanation:"<strong>c) es correcta.</strong> <code>ORDER BY</code> en Cassandra solo funciona sobre la clustering key (<code>fecha</code>) dentro de una partición. a) y b) ordenan por columnas que no son clustering key → error. d) no incluye la partition key."
+  },
+  {
+    db:"cassandra",
+    q:`Tabla con partition key compuesta:
+<pre>CREATE TABLE logs (
+  app_id  text,
+  env     text,
+  ts      timestamp,
+  msg     text,
+  PRIMARY KEY ((app_id, env), ts)
+);</pre>
+¿Cuál consulta funciona sin error?`,
+    options:[
+      {code:`SELECT * FROM logs WHERE app_id = 'api';`},
+      {code:`SELECT * FROM logs WHERE app_id = 'api' AND ts > '2024-01-01';`},
+      {code:`SELECT * FROM logs WHERE app_id = 'api' AND env = 'prod';`},
+      {code:`SELECT * FROM logs WHERE app_id = 'api' AND env = 'prod' AND ts > '2024-01-01';`},
+    ],
+    correct:3,
+    explanation:"<strong>d) es correcta.</strong> La partition key compuesta es <code>(app_id, env)</code> — ambos campos son obligatorios. a), b) y c) proveen solo parte de la partition key → error."
+  },
+  {
+    db:"cassandra",
+    q:"¿Qué pasa si filtrás por una columna normal (no PK, sin índice) en Cassandra, sin ALLOW FILTERING?",
+    options:[
+      {text:"Devuelve resultados pero lentamente (collection scan)"},
+      {text:"Lanza un error — Cassandra no permite ese filtro sin índice o ALLOW FILTERING"},
+      {text:"Devuelve resultados vacíos sin error"},
+      {text:"Funciona solo si la columna tiene valores únicos"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> A diferencia de MongoDB (que permite collection scan), Cassandra lanza error. Las consultas deben estar guiadas por la estructura de la PK."
+  },
+  {
+    db:"cassandra",
+    q:"¿Cuál es el rol de la <strong>Clustering Key</strong> en Cassandra?",
+    options:[
+      {text:"Determina en qué nodo(s) se almacenan los datos"},
+      {text:"Determina el orden físico de las filas dentro de una partición y habilita ORDER BY y filtros adicionales"},
+      {text:"Es obligatoria en todas las tablas de Cassandra"},
+      {text:"Define el factor de réplica de la partición"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> La Partition Key determina el nodo. La Clustering Key determina el orden físico de las filas dentro de esa partición en el SSTable — por eso habilita ORDER BY eficiente y filtros de rango sobre ese campo."
+  },
+
+  // ══════════════════════════════════════════════════════════
+  // CASSANDRA — ALLOW FILTERING E ÍNDICES
+  // ══════════════════════════════════════════════════════════
+  {
+    db:"cassandra",
+    q:"¿Por qué <code>ALLOW FILTERING</code> es peligroso en producción?",
+    options:[
+      {text:"Porque desactiva la replicación temporalmente"},
+      {text:"Porque recupera todas las filas que coinciden con la PK y filtra en memoria, pudiendo escanear millones de filas para devolver pocos resultados"},
+      {text:"Porque solo funciona con tablas de un único nodo"},
+      {text:"Porque modifica los datos mientras filtra"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> Cassandra trae a memoria todo lo que coincide con la PK y luego filtra el resto. En particiones grandes puede escanear millones de filas para devolver muy pocos resultados — escala muy mal."
+  },
+  {
+    db:"cassandra",
+    q:"¿Qué problema tiene un índice secundario sobre columna con <strong>baja cardinalidad</strong> en Cassandra?",
+    options:[
+      {text:"Cassandra no permite crear ese índice"},
+      {text:"La consulta puede ser más lenta que un full scan, porque el índice distribuido genera scatter/gather entre muchos nodos"},
+      {text:"El índice solo funciona con ALLOW FILTERING"},
+      {text:"Los datos del índice se desactualizan por hasta 1 minuto"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> El índice secundario es una tabla oculta distribuida. Con baja cardinalidad (ej: <code>status</code> con 5 valores), la consulta debe contactar muchos nodos → scatter/gather costoso."
+  },
+
+  // ══════════════════════════════════════════════════════════
+  // CASSANDRA — ARQUITECTURA E INTERNOS
+  // ══════════════════════════════════════════════════════════
+  {
+    db:"cassandra",
+    q:"¿Cuál es el orden correcto del proceso de escritura interno en Cassandra?",
+    options:[
+      {text:"MemTable → SSTable → Commit Log"},
+      {text:"Commit Log → MemTable → SSTable (cuando la MemTable se llena)"},
+      {text:"SSTable → Commit Log → MemTable"},
+      {text:"Commit Log → SSTable → MemTable"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> Primero el Commit Log (durabilidad en disco), luego la MemTable (en memoria, rápido). Cuando la MemTable se llena, se hace flush → SSTable inmutable en disco."
+  },
+  {
+    db:"cassandra",
+    q:"¿Qué hace el <strong>Tombstone</strong> en Cassandra?",
+    options:[
+      {text:"Elimina físicamente del disco los datos borrados de inmediato"},
+      {text:"Es una marca de borrado lógico — los datos se limpian físicamente en la compactación"},
+      {text:"Es el nodo coordinador que recibe escrituras del cliente"},
+      {text:"Es el log de transacciones que garantiza durabilidad"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> Las SSTables son inmutables. Al borrar, Cassandra escribe un Tombstone (marca lógica). En la compactación periódica se fusionan SSTables y se eliminan los Tombstones."
+  },
+  {
+    db:"cassandra",
+    q:"¿Para qué sirve la <strong>compactación</strong> en Cassandra?",
+    options:[
+      {text:"Para comprimir datos y reducir uso de red entre nodos"},
+      {text:"Para fusionar SSTables, eliminar datos obsoletos y Tombstones, mejorando la velocidad de lectura"},
+      {text:"Para redistribuir particiones entre nodos cuando se agrega uno nuevo"},
+      {text:"Para sincronizar réplicas que quedaron desactualizadas"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> Con el tiempo se acumulan múltiples SSTables. La compactación las fusiona en una sola más eficiente, eliminando versiones obsoletas de datos y Tombstones. Mejora las lecturas porque hay menos SSTables que recorrer."
+  },
+  {
+    db:"cassandra",
+    q:"¿Para qué sirven los <strong>Virtual Nodes (vnodes)</strong>?",
+    options:[
+      {text:"Para reducir latencia almacenando datos en memoria"},
+      {text:"Para que cada nodo físico gestione múltiples rangos de tokens en el anillo, mejorando distribución y facilitando agregar/quitar nodos"},
+      {text:"Para replicar datos entre datacenters"},
+      {text:"Para permitir consultas sin partition key"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> Sin vnodes, cada nodo gestiona un único rango continuo — agregar un nodo requiere mover muchos datos. Con vnodes, cada nodo gestiona múltiples rangos pequeños → mejor balance y rebalanceo más simple."
+  },
+  {
+    db:"cassandra",
+    q:"¿Qué rol cumple el <strong>protocolo Gossip</strong> en Cassandra?",
+    options:[
+      {text:"Coordina las escrituras entre réplicas para garantizar consistencia"},
+      {text:"Permite que los nodos se comuniquen entre sí en segundo plano para detectar nodos caídos y compartir estado del clúster"},
+      {text:"Calcula el token hash de cada partition key para decidir el nodo destino"},
+      {text:"Sincroniza el Commit Log entre nodos en tiempo real"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> Gossip es el protocolo peer-to-peer que usan los nodos para intercambiar información sobre el estado del clúster (qué nodos están vivos, caídos, con qué versión). No interviene en el camino de datos de lectura/escritura."
+  },
+  {
+    db:"cassandra",
+    q:"¿Por qué las escrituras en Cassandra son más baratas que las lecturas?",
+    options:[
+      {text:"Porque Cassandra cachea todas las escrituras en RAM indefinidamente"},
+      {text:"Porque las escrituras solo tocan el Commit Log y la MemTable (estructuras optimizadas). Las lecturas pueden requerir acceder a múltiples SSTables en disco"},
+      {text:"Porque las lecturas requieren consenso entre réplicas y las escrituras no"},
+      {text:"Porque las escrituras se hacen en paralelo en todos los nodos"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> Escribir es barato: Commit Log (append secuencial) + MemTable (memoria). Leer es más costoso: si el dato no está en MemTable, hay que buscar en múltiples SSTables en disco hasta encontrarlo."
+  },
+
+  // ══════════════════════════════════════════════════════════
+  // CAP Y COMPARATIVO
+  // ══════════════════════════════════════════════════════════
+  {
+    db:"cassandra",
+    q:"En el teorema CAP, ¿cuál es la diferencia entre MongoDB y Cassandra ante una partición de red?",
+    options:[
+      {text:"MongoDB es AP y Cassandra es CP"},
+      {text:"MongoDB es CP y Cassandra es AP"},
+      {text:"Ambos son CP — difieren solo en velocidad"},
+      {text:"Ambos son AP — difieren en el factor de réplica"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> MongoDB es CP: ante partición, el Primary puede rechazar escrituras para no comprometer consistencia. Cassandra es AP: cualquier nodo responde siempre, aunque el dato no sea el más reciente."
+  },
+  {
+    db:"teoria",
+    q:"¿Cuál afirmación sobre MongoDB es correcta respecto a su punto único de falla?",
+    options:[
+      {text:"MongoDB no tiene punto único de falla porque usa arquitectura peer-to-peer"},
+      {text:"MongoDB SÍ tiene punto único de falla: el nodo Primary del Replica Set — si cae, hay una ventana sin escrituras hasta que se elige uno nuevo"},
+      {text:"MongoDB elimina el punto único de falla si el factor de réplica es mayor a 2"},
+      {text:"El punto único de falla en MongoDB es el mongos router, no el Primary"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> El Primary es el único nodo que acepta escrituras. Si cae, se dispara una elección automática (~10-30 seg) durante la cual no se pueden realizar escrituras. Cassandra no tiene este problema por su arquitectura peer-to-peer."
+  },
+
+  // ══════════════════════════════════════════════════════════
+  // TEORÍA — NoSQL
+  // ══════════════════════════════════════════════════════════
+  {
+    db:"teoria",
+    q:"¿Qué significa que el valor en una base clave-valor es <strong>opaco</strong> para la base de datos?",
+    options:[
+      {text:"Que el valor está encriptado"},
+      {text:"Que el motor no interpreta la estructura interna del valor — lo almacena y devuelve como un blob sin entender qué hay adentro"},
+      {text:"Que el valor no puede ser modificado una vez guardado"},
+      {text:"Que el valor solo puede ser de tipo string"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> El motor solo sabe hacer GET y PUT por clave. No puede indexar campos internos ni consultar por contenido. La interpretación del valor le queda a la aplicación."
+  },
+  {
+    db:"teoria",
+    q:"¿Cuál fue la razón principal por la que surgieron las bases NoSQL?",
+    options:[
+      {text:"Porque SQL era demasiado difícil de aprender"},
+      {text:"Porque los RDBMS no podían escalar ante el crecimiento masivo de datos — el volumen global se multiplicó x15 en una década"},
+      {text:"Porque las bases relacionales no soportaban JSON"},
+      {text:"Porque NoSQL es más barato de licenciar"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> Los RDBMS escalan verticalmente (más hardware en un nodo), lo cual tiene límites. NoSQL nació para escalar horizontalmente (más nodos) ante el volumen generado por empresas como Facebook e Instagram."
+  },
+  {
+    db:"teoria",
+    q:"¿Cuál tipo de base NoSQL es más adecuado para consultas analíticas sobre pocas columnas de un dataset enorme?",
+    options:[
+      {text:"Clave-Valor"},
+      {text:"Documental"},
+      {text:"Columnar"},
+      {text:"Grafos"},
+    ],
+    correct:2,
+    explanation:"<strong>c) es correcta.</strong> Las bases columnares organizan los datos por columna en lugar de por fila. Para una consulta analítica que solo necesita 3 columnas de 100 millones de filas, solo se leen esas 3 columnas — mucho más eficiente que leer filas completas."
+  },
+  {
+    db:"teoria",
+    q:"¿Qué afirmación sobre NoSQL es <strong>correcta</strong>?",
+    options:[
+      {text:"NoSQL significa 'No SQL' — estas bases nunca usan SQL"},
+      {text:"NoSQL significa 'Not Only SQL' — no excluye SQL, es un término paraguas para bases que no siguen el modelo relacional"},
+      {text:"NoSQL siempre usa BASE — ninguna NoSQL puede implementar ACID"},
+      {text:"NoSQL solo sirve para datos no estructurados"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> NoSQL = 'Not Only SQL'. No excluye SQL. Neo4j implementa ACID completo. Y pueden manejar datos estructurados, semiestructurados y no estructurados."
+  },
+
+  // ══════════════════════════════════════════════════════════
+  // TEORÍA — CAP
+  // ══════════════════════════════════════════════════════════
+  {
+    db:"teoria",
+    q:"¿Por qué la <strong>tolerancia a particiones (P)</strong> es obligatoria en sistemas distribuidos reales?",
+    options:[
+      {text:"Porque es la propiedad más fácil de implementar"},
+      {text:"Porque las particiones de red ocurren inevitablemente en sistemas con múltiples nodos — ignorarlas no es una opción real"},
+      {text:"Porque sin P el sistema no puede replicar datos"},
+      {text:"Porque P es requerida por el estándar IEEE"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> En cualquier sistema distribuido los cortes de comunicación entre nodos son inevitables (fallas de red, reinicios, latencia). Un sistema que no tolere particiones dejaría de funcionar ante cualquier problema de red."
+  },
+  {
+    db:"teoria",
+    q:"¿Cuál es la elección real que impone CAP en sistemas distribuidos?",
+    options:[
+      {text:"Entre Consistencia y Tolerancia a particiones"},
+      {text:"Entre Disponibilidad y Tolerancia a particiones"},
+      {text:"Entre Consistencia y Disponibilidad (dado que P siempre debe estar)"},
+      {text:"Entre las tres propiedades por igual"},
+    ],
+    correct:2,
+    explanation:"<strong>c) es correcta.</strong> Como P es obligatoria, la elección práctica siempre es C vs A: ¿prefiero que todos los nodos devuelvan el mismo dato (C) o que el sistema siempre responda aunque el dato no sea el más reciente (A)?"
+  },
+  {
+    db:"teoria",
+    q:"¿Qué relación tiene la <strong>replicación síncrona</strong> con el teorema CAP?",
+    options:[
+      {text:"Prioriza AP — confirma en el primario y propaga después"},
+      {text:"Prioriza CP — confirma solo cuando todos los nodos tienen el dato"},
+      {text:"No tiene relación con CAP"},
+      {text:"Prioriza CA — elimina la posibilidad de particiones"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> La replicación síncrona espera a que todos los nodos confirmen antes de responder al cliente. Garantiza consistencia (todos tienen el mismo dato) pero sacrifica disponibilidad si algún nodo no responde."
+  },
+
+  // ══════════════════════════════════════════════════════════
+  // TEORÍA — ACID
+  // ══════════════════════════════════════════════════════════
+  {
+    db:"teoria",
+    q:"Una transferencia bancaria debita $100 pero el sistema falla antes de acreditar. ¿Cuál propiedad ACID evita que quede en ese estado inconsistente?",
+    options:[
+      {text:"Consistencia (C)"},
+      {text:"Atomicidad (A)"},
+      {text:"Isolation (I)"},
+      {text:"Durabilidad (D)"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> La Atomicidad garantiza todo o nada. Si el sistema falla a mitad de la operación, se revierte todo — el débito no queda aplicado si el crédito no se completó."
+  },
+  {
+    db:"teoria",
+    q:"Dos usuarios compran el último ítem en stock al mismo tiempo. ¿Cuál propiedad ACID evita que el stock quede en negativo?",
+    options:[
+      {text:"Atomicidad (A)"},
+      {text:"Consistencia (C)"},
+      {text:"Isolation (I)"},
+      {text:"Durabilidad (D)"},
+    ],
+    correct:2,
+    explanation:"<strong>c) es correcta.</strong> El Isolation garantiza que las transacciones concurrentes no se interfieren — se ejecutan como si fueran las únicas en el sistema. Una de las dos compras ve el stock en 0 y falla."
+  },
+  {
+    db:"teoria",
+    q:"Si el servidor se cae justo después de un <code>COMMIT</code>, ¿cuál propiedad ACID garantiza que el dato no se pierde?",
+    options:[
+      {text:"Atomicidad (A)"},
+      {text:"Consistencia (C)"},
+      {text:"Isolation (I)"},
+      {text:"Durabilidad (D)"},
+    ],
+    correct:3,
+    explanation:"<strong>d) es correcta.</strong> La Durabilidad garantiza que una transacción confirmada persiste aunque el sistema falle inmediatamente después. Se logra típicamente con write-ahead logs (WAL) en disco antes de confirmar."
+  },
+  {
+    db:"teoria",
+    q:"¿Por qué ACID es costoso de implementar en sistemas distribuidos?",
+    options:[
+      {text:"Porque los sistemas distribuidos no tienen disco para garantizar durabilidad"},
+      {text:"Porque coordinar atomicidad e isolation entre múltiples nodos requiere protocolos como 2-Phase Commit que generan latencia y reducen disponibilidad"},
+      {text:"Porque ACID fue diseñado solo para bases en memoria"},
+      {text:"Porque los sistemas distribuidos no pueden tener transacciones"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> Garantizar que una transacción sea atómica en muchos nodos requiere que todos confirmen antes de responder (2PC). Coordinar eso agrega latencia y puntos de fallo — por eso NoSQL relaja estas garantías con BASE."
+  },
+
+  // ══════════════════════════════════════════════════════════
+  // TEORÍA — BASE
+  // ══════════════════════════════════════════════════════════
+  {
+    db:"teoria",
+    q:"¿Qué significa <strong>Soft State</strong> en el modelo BASE?",
+    options:[
+      {text:"Que los datos pueden borrarse automáticamente después de un tiempo"},
+      {text:"Que el estado del sistema puede cambiar con el tiempo incluso sin nuevas escrituras, por la propagación de réplicas entre nodos"},
+      {text:"Que el sistema no garantiza que los datos persistan en disco"},
+      {text:"Que los datos son opcionales y no todas las filas deben tenerlos"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> En BASE el estado no es estático. Aunque no entren nuevas escrituras, el estado sigue cambiando mientras las réplicas se sincronizan entre nodos."
+  },
+  {
+    db:"teoria",
+    q:"¿Cuál afirmación sobre la <strong>consistencia eventual</strong> es correcta?",
+    options:[
+      {text:"Los datos nunca se sincronizan entre nodos"},
+      {text:"Las escrituras están prohibidas durante la sincronización"},
+      {text:"Puede haber una ventana temporal donde dos nodos devuelvan valores distintos para el mismo dato, pero eventualmente convergen"},
+      {text:"Solo aplica con factor de réplica mayor a 3"},
+    ],
+    correct:2,
+    explanation:"<strong>c) es correcta.</strong> La consistencia eventual no significa caos permanente. La inconsistencia es temporal: con el tiempo, sin más cambios, todos los nodos convergen al mismo valor."
+  },
+
+  // ══════════════════════════════════════════════════════════
+  // TEORÍA — FRAGMENTACIÓN Y REPLICACIÓN
+  // ══════════════════════════════════════════════════════════
+  {
+    db:"teoria",
+    q:"¿Qué es un <strong>hotspot</strong> en el contexto del sharding?",
+    options:[
+      {text:"Un nodo que actúa como coordinador de todas las consultas"},
+      {text:"Una concentración desbalanceada de carga en uno o pocos nodos, causada por una shard key con baja cardinalidad"},
+      {text:"Un nodo de solo lectura que sirve como caché"},
+      {text:"Un índice secundario que acelera consultas frecuentes"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> Si la shard key tiene pocos valores distintos (ej: <code>status</code>), la mayoría de los datos puede ir al mismo nodo. Ese nodo recibe casi todo el tráfico mientras los demás están ociosos."
+  },
+  {
+    db:"teoria",
+    q:"¿Qué es una consulta <strong>Scatter/Gather</strong>?",
+    options:[
+      {text:"Una consulta eficiente que va directo al nodo correcto"},
+      {text:"Una consulta distribuida costosa donde la base pregunta a todos los nodos porque no puede calcular el hash sin la partition key"},
+      {text:"Una consulta que replica los resultados en todos los nodos"},
+      {text:"Una consulta con ALLOW FILTERING que filtra en memoria"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> Sin la partition key en el WHERE, no se puede calcular a qué nodo ir directamente. La base envía la consulta a todos (scatter), espera respuestas, y las combina (gather). Costoso y no escala bien."
+  },
+  {
+    db:"teoria",
+    q:"¿Cuál es la diferencia entre <strong>fragmentación</strong> y <strong>replicación</strong>?",
+    options:[
+      {text:"Son lo mismo — ambas distribuyen datos entre nodos"},
+      {text:"La fragmentación divide los datos en subconjuntos distintos en cada nodo. La replicación duplica los mismos datos en múltiples nodos"},
+      {text:"La fragmentación es para lecturas, la replicación para escrituras"},
+      {text:"La fragmentación aumenta redundancia, la replicación mejora rendimiento"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> Sharding: el dato A está en nodo 1 y el dato B en nodo 2 — escala el almacenamiento. Replicación: el dato A está en nodo 1 Y en nodo 2 — aumenta disponibilidad y tolerancia a fallos."
+  },
+  {
+    db:"teoria",
+    q:"En replicación <strong>Maestro-Esclavo</strong>, ¿qué pasa si cae el nodo maestro?",
+    options:[
+      {text:"El sistema sigue operando sin impacto porque cualquier esclavo toma el rol automáticamente"},
+      {text:"El sistema queda sin posibilidad de escrituras hasta que se restaure o elija un nuevo maestro"},
+      {text:"Todos los nodos esclavos también caen en cascada"},
+      {text:"Los datos se pierden porque los esclavos no tienen copias completas"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> El maestro es el punto único de falla para escrituras. Si cae, las lecturas pueden seguir desde los esclavos, pero las escrituras quedan bloqueadas hasta elegir un nuevo maestro."
+  },
+  {
+    db:"teoria",
+    q:"¿Cuál es el principal riesgo de la replicación <strong>Peer-to-Peer</strong>?",
+    options:[
+      {text:"Baja disponibilidad — si un nodo cae, el sistema se detiene"},
+      {text:"Conflictos de escritura-escritura concurrentes — dos nodos pueden aceptar escrituras distintas sobre el mismo dato al mismo tiempo"},
+      {text:"No soporta lecturas distribuidas"},
+      {text:"Requiere siempre factor de réplica 3 como mínimo"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> En P2P cualquier nodo acepta escrituras — no hay punto único de falla. Pero si dos clientes escriben el mismo dato en nodos distintos simultáneamente, hay un conflicto que el sistema debe resolver."
+  },
+  {
+    db:"teoria",
+    q:"¿Qué significa <strong>factor de réplica 3</strong> en Cassandra?",
+    options:[
+      {text:"El clúster tiene exactamente 3 nodos"},
+      {text:"Cada dato existe en 3 nodos distintos del clúster"},
+      {text:"Cada escritura se confirma cuando 3 nodos la reciben"},
+      {text:"La base de datos hace 3 copias de cada SSTable"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> El factor de réplica define cuántas copias del dato existen en nodos distintos. Con factor 3, si un nodo cae, el dato sigue disponible en los otros 2. No dice nada sobre cuántos nodos tiene el clúster total."
+  },
+  {
+    db:"teoria",
+    q:"¿Cuál es la diferencia entre <strong>fragmentación por rango</strong> y <strong>por hash</strong>?",
+    options:[
+      {text:"Por rango es más rápida, por hash es más consistente"},
+      {text:"Por rango agrupa datos similares (fácil para rangos, riesgo de hotspot). Por hash distribuye uniformemente (minimiza hotspots, pero las consultas por rango deben ir a todos los shards)"},
+      {text:"Por hash solo funciona con claves numéricas"},
+      {text:"Por rango requiere más nodos que por hash"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> Rango: A-M en shard 1, N-Z en shard 2 — fácil para consultas de rango pero propenso a hotspots. Hash: el hash de la clave determina el shard — distribución uniforme pero las consultas por rango deben ir a todos los shards."
+  },
+
+  // ══════════════════════════════════════════════════════════
+  // TEORÍA — MURMUR HASH
+  // ══════════════════════════════════════════════════════════
+  {
+    db:"teoria",
+    q:"¿Qué propiedad de <strong>MurmurHash3</strong> garantiza que el mismo dato siempre vaya al mismo nodo?",
+    options:[
+      {text:"Es criptográfico — produce hashes únicos e irrepetibles"},
+      {text:"Es determinista — la misma partition key siempre produce el mismo token"},
+      {text:"Es aleatorio — distribuye datos impredeciblemente para evitar hotspots"},
+      {text:"Es incremental — asigna tokens secuenciales a cada nuevo dato"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> MurmurHash3 es determinista: la misma entrada siempre produce la misma salida. Cuando hacés una consulta con la partition key, el coordinador calcula el hash y sabe exactamente a qué nodo ir — sin catálogo centralizado."
+  },
+  {
+    db:"teoria",
+    q:"¿Qué ocurre en Cassandra cuando una consulta <strong>no incluye la partition key</strong>?",
+    options:[
+      {text:"Va al nodo coordinador que busca en su índice local"},
+      {text:"Se genera un scatter/gather: la consulta se envía a todos los nodos y se combinan las respuestas"},
+      {text:"Cassandra devuelve error inmediatamente sin ejecutar la consulta"},
+      {text:"Va al nodo con menos carga en ese momento"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> Sin la partition key no se puede calcular el hash → no se sabe a qué nodo ir. Cassandra envía la consulta a todos los nodos (scatter), espera respuestas y las combina (gather). Por eso se llama Scatter/Gather y es costoso."
+  },
+
+  // ══════════════════════════════════════════════════════════
+  // NEO4J
+  // ══════════════════════════════════════════════════════════
+  {
+    db:"neo4j",
+    q:"Neo4j usa el algoritmo <strong>Raft</strong>. ¿Cuántos Core Servers se necesitan para tolerar 2 fallos simultáneos?",
+    options:[
+      {text:"2 Core Servers"},
+      {text:"3 Core Servers"},
+      {text:"4 Core Servers"},
+      {text:"5 Core Servers"},
+    ],
+    correct:3,
+    explanation:"<strong>d) es correcta.</strong> Fórmula Raft: M = 2F + 1. Para F=2 fallos: M = 2×2+1 = 5. Con 5 Core Servers, el sistema puede perder 2 y aún tener mayoría (3) para confirmar escrituras."
+  },
+  {
+    db:"neo4j",
+    q:"¿Cuál es la diferencia entre <strong>Core Servers</strong> y <strong>Read Replicas</strong> en Neo4j?",
+    options:[
+      {text:"Core Servers solo leen, Read Replicas solo escriben"},
+      {text:"Core Servers aceptan lecturas y escrituras con consistencia fuerte (CP) via Raft. Read Replicas son solo lectura con consistencia eventual y no participan en el consenso"},
+      {text:"Son lo mismo — difieren solo en nomenclatura"},
+      {text:"Core Servers usan Gossip, Read Replicas usan Raft"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> Core Servers garantizan consistencia fuerte mediante Raft (mayoría debe aprobar). Las Read Replicas escalan lecturas y reportes pero se sincronizan periódicamente — pueden devolver datos ligeramente desactualizados."
+  },
+  {
+    db:"neo4j",
+    q:"¿Por qué las bases de grafos son más eficientes que SQL para relaciones profundas (ej: amigos de amigos de amigos)?",
+    options:[
+      {text:"Porque usan un lenguaje de consulta más moderno que SQL"},
+      {text:"Porque las relaciones están almacenadas como punteros directos entre nodos — navegar una relación es seguir un puntero, sin escanear tablas ni calcular JOINs"},
+      {text:"Porque los grafos comprimen mejor los datos que las tablas relacionales"},
+      {text:"Porque los grafos no necesitan índices"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> En SQL cada nivel de profundidad requiere un JOIN adicional (escala mal). En un grafo nativo, cada nodo guarda punteros directos a sus relaciones. Navegar 5 niveles es simplemente seguir 5 punteros."
+  },
+  {
+    db:"neo4j",
+    q:"¿Para cuál caso una base de grafos <strong>NO</strong> es la mejor opción?",
+    options:[
+      {text:"Detección de fraude en patrones de transacciones entre cuentas"},
+      {text:"Gestión de permisos e identidades (quién accede a qué recurso)"},
+      {text:"Procesamiento de millones de transacciones simples por segundo sin relaciones complejas"},
+      {text:"Motor de recomendación basado en comportamiento de usuarios"},
+    ],
+    correct:2,
+    explanation:"<strong>c) es correcta.</strong> Los grafos no son óptimos para transacciones simples masivas sin relaciones complejas ni para alta distribución horizontal. En ese escenario, Cassandra o Redis son más adecuados."
+  },
+  {
+    db:"neo4j",
+    q:"¿Qué significa que Neo4j tiene <strong>almacenamiento nativo de grafos</strong>?",
+    options:[
+      {text:"Que guarda los datos en formato JSON nativamente"},
+      {text:"Que cada nodo guarda punteros directos a sus relaciones entrantes y salientes — navegar el grafo no requiere índices adicionales después de localizar el nodo inicial"},
+      {text:"Que no usa disco — todo se guarda en memoria"},
+      {text:"Que los datos se guardan en tablas relacionales internamente"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> El almacenamiento nativo significa que la estructura interna del motor refleja la estructura del grafo. Cada nodo tiene punteros físicos a sus aristas, y cada arista apunta a sus nodos extremos. La navegación es O(1) por relación."
+  },
+  {
+    db:"neo4j",
+    q:"¿Qué hace el operador <code>MATCH</code> en Cypher (Neo4j)?",
+    options:[
+      {text:"Crea nuevos nodos o relaciones en el grafo"},
+      {text:"Define el patrón de nodos y relaciones a buscar en el grafo — equivale al FROM + WHERE de SQL"},
+      {text:"Actualiza propiedades de nodos existentes"},
+      {text:"Elimina nodos y relaciones del grafo"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> <code>MATCH</code> describe el patrón que Cypher debe encontrar en el grafo. Por ejemplo: <code>MATCH (a:Person)-[:KNOWS]->(b:Person)</code> busca pares de personas donde a conoce a b. El <code>RETURN</code> posterior define qué se devuelve."
+  },
+
+  // ══════════════════════════════════════════════════════════
+  // PUNTOS TRAMPA — COMPARATIVO FINAL
+  // ══════════════════════════════════════════════════════════
+  {
+    db:"teoria",
+    q:"¿Cuál de estas afirmaciones del cuadro comparativo es <strong>correcta</strong>?",
+    options:[
+      {text:"Cassandra es CP y MongoDB es AP"},
+      {text:"MongoDB tiene ACID completo igual que Neo4j"},
+      {text:"Cassandra NO tiene punto único de falla; MongoDB SÍ tiene (el Primary)"},
+      {text:"Neo4j usa Gossip para consenso; Cassandra usa Raft"},
+    ],
+    correct:2,
+    explanation:"<strong>c) es correcta.</strong> Cassandra es peer-to-peer — cualquier nodo puede caer sin detener el sistema. MongoDB depende del Primary para escrituras — si cae, hay ventana sin escrituras. Neo4j usa Raft, Cassandra usa Gossip (para detección, no para consenso de escrituras)."
+  },
+  {
+    db:"teoria",
+    q:"¿Cuál afirmación sobre <strong>ORDER BY</strong> es correcta según cada base de datos?",
+    options:[
+      {text:"MongoDB: solo por campos indexados. Cassandra: cualquier campo. Neo4j: no soporta ORDER BY"},
+      {text:"MongoDB: cualquier campo. Cassandra: solo por clustering key. Neo4j: cualquier campo"},
+      {text:"MongoDB: solo por _id. Cassandra: solo por partition key. Neo4j: solo por ID de nodo"},
+      {text:"Las tres bases tienen las mismas restricciones de ORDER BY"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> MongoDB permite ORDER BY por cualquier campo (con o sin índice). Cassandra solo permite ORDER BY por la clustering key dentro de una partición. Neo4j permite ordenar por cualquier propiedad en Cypher."
+  },
+  {
+    db:"teoria",
+    q:"¿Cuál es el lenguaje de consulta de cada base? MongoDB → Cassandra → Neo4j",
+    options:[
+      {text:"SQL → CQL → SQL"},
+      {text:"MQL → CQL → Cypher"},
+      {text:"JSON → SQL → GraphQL"},
+      {text:"BSON → CQL → Gremlin"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> MongoDB usa MQL (MongoDB Query Language, similar a JavaScript). Cassandra usa CQL (Cassandra Query Language, similar a SQL). Neo4j usa Cypher (lenguaje de patrones con sintaxis ascii-art: nodos en paréntesis, relaciones en corchetes)."
+  },
+
+];
+
+// ──────────────────────────────────────────────
+// ESTADO Y LÓGICA
+// ──────────────────────────────────────────────
+const state = new Array(questions.length).fill(null);
+let current = 0;
+let score   = 0;
+
+const DB_LABELS = { mongo:'MongoDB', cassandra:'Cassandra', neo4j:'Neo4j', teoria:'Teoría' };
+
+function escHtml(s){
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function render(){
+  const q = questions[current];
+  const s = state[current];
+  const letters = ['a','b','c','d'];
+
+  const optionsHTML = q.options.map((opt,i)=>{
+    const content = opt.code
+      ? `<span class="text"><pre><code>${escHtml(opt.code)}</code></pre></span>`
+      : `<span class="text">${opt.text}</span>`;
+    let cls = 'option';
+    if(s !== null){
+      cls += ' disabled';
+      if(i === q.correct)          cls += ' correct';
+      else if(i === s.answeredIdx) cls += ' wrong';
+      else                          cls += ' dimmed';
+    }
+    const click = s === null ? `onclick="answer(${i})"` : '';
+    return `<div class="${cls}" ${click}><span class="letter">${letters[i]}</span>${content}</div>`;
+  }).join('');
+
+  let feedbackHTML = '';
+  if(s !== null){
+    const cls  = s.wasCorrect ? 'feedback show ok' : 'feedback show fail';
+    const icon = s.wasCorrect ? '✓ Correcto' : '✗ Incorrecto';
+    feedbackHTML = `<div class="${cls}"><strong>${icon}</strong>${q.explanation}</div>`;
+  }
+
+  const showNext = s !== null;
+  const showPrev = current > 0;
+  const isLast   = current === questions.length - 1;
+
+  document.getElementById('quiz-container').innerHTML = `
+    <div class="card">
+      <span class="badge ${q.db}">${DB_LABELS[q.db]}</span>
+      <h2>${q.q}</h2>
+      <div class="options">${optionsHTML}</div>
+      ${feedbackHTML}
+      <div class="btn-row">
+        <button class="btn-prev ${showPrev?'show':''}" onclick="prev()">← Anterior</button>
+        <button class="btn-next ${showNext?'show':''}" onclick="next()">
+          ${isLast ? 'Ver resultado' : 'Siguiente →'}
+        </button>
+      </div>
+    </div>`;
+
+  updateProgress();
+  if(s !== null) window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function answer(idx){
+  if(state[current] !== null) return;
+  const wasCorrect = idx === questions[current].correct;
+  if(wasCorrect) score++;
+  state[current] = { answeredIdx:idx, wasCorrect };
+  render();
+}
+
+function next(){
+  if(current < questions.length - 1){ current++; render(); }
+  else showScore();
+}
+
+function prev(){
+  if(current > 0){ current--; render(); }
+}
+
+function updateProgress(){
+  const total    = questions.length;
+  const answered = state.filter(s=>s!==null).length;
+  document.getElementById('progress-fill').style.width = (answered/total*100)+'%';
+  document.getElementById('prog-text').textContent  = `Pregunta ${current+1} de ${total}`;
+  document.getElementById('score-text').textContent = `${score} correctas`;
+}
+
+function showScore(){
+  document.getElementById('quiz-container').style.display    = 'none';
+  document.getElementById('progress-bar-wrap').style.display = 'none';
+  const screen = document.getElementById('score-screen');
+  screen.style.display = 'block';
+  document.getElementById('final-score').textContent = `${score} / ${questions.length}`;
+
+  // breakdown por categoría
+  const cats = {};
+  questions.forEach((q,i)=>{
+    if(!cats[q.db]) cats[q.db] = {correct:0, total:0};
+    cats[q.db].total++;
+    if(state[i]?.wasCorrect) cats[q.db].correct++;
+  });
+  document.getElementById('breakdown').innerHTML = Object.entries(cats).map(([db,v])=>
+    `<div class="breakdown-item"><span>${v.correct}/${v.total}</span>${DB_LABELS[db]}</div>`
+  ).join('');
+
+  const pct = score / questions.length;
+  let msg = '';
+  if     (pct===1)   msg='Perfecto. Dominás todo el temario.';
+  else if(pct>=0.85) msg='Muy bien. Repasá los que fallaste.';
+  else if(pct>=0.65) msg='Bien encaminado. Vale repasar las reglas de PK en Cassandra y CAP.';
+  else               msg='Seguí practicando — prestá atención a partition keys, ACID/BASE y operadores.';
+  document.getElementById('final-msg').textContent = msg;
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function restart(){
+  current = 0; score = 0; state.fill(null);
+  document.getElementById('quiz-container').style.display    = 'block';
+  document.getElementById('progress-bar-wrap').style.display = 'block';
+  document.getElementById('score-screen').style.display      = 'none';
+  render();
+}
+
+render();
+</script>
+</body>
+</html>
