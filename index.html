@@ -60,6 +60,8 @@
     .badge.cassandra { background: #1e3a5f; color: #93c5fd; }
     .badge.teoria    { background: #3b1f5e; color: #c4b5fd; }
     .badge.neo4j     { background: #3b2a0f; color: #fcd34d; }
+    .badge.grafo     { background: #2d1a4e; color: #d8b4fe; }
+    .badge.practica  { background: #2d1b00; color: #fbbf24; }
 
     .card h2 {
       font-size: clamp(0.9rem, 3.8vw, 1.05rem);
@@ -1146,6 +1148,229 @@ const questions = [
     explanation:"<strong>b) es correcta.</strong> MongoDB usa MQL (MongoDB Query Language, similar a JavaScript). Cassandra usa CQL (Cassandra Query Language, similar a SQL). Neo4j usa Cypher (lenguaje de patrones con sintaxis ascii-art: nodos en paréntesis, relaciones en corchetes)."
   },
 
+  // ══════════════════════════════════════════════════════════
+  // PREGUNTAS ESTILO PARCIAL — basadas en el examen real 22/4/2026
+  // ══════════════════════════════════════════════════════════
+
+  // ── NoSQL General ──
+  {
+    db:"teoria",
+    q:"¿Cuál de los siguientes tipos de bases de datos NoSQL es más adecuado para almacenar sesiones de usuario con datos simples como <code>token</code> y <code>fecha_expiracion</code>?",
+    options:[
+      {text:"Document"},
+      {text:"Column-Family"},
+      {text:"Graph"},
+      {text:"Key-Value"},
+    ],
+    correct:3,
+    explanation:"<strong>d) Key-Value es correcta.</strong> Las sesiones se consultan siempre por su identificador único (clave) y el valor es un blob simple. Key-Value es óptimo para acceso por clave con lectura/escritura extremadamente rápida. No hace falta consultar por campos internos."
+  },
+  {
+    db:"teoria",
+    q:"En el teorema CAP, una base de datos que prioriza <strong>Disponibilidad (A)</strong> y <strong>Tolerancia a Particiones (P)</strong> sacrifica:",
+    options:[
+      {text:"La tolerancia a fallos de red"},
+      {text:"La consistencia inmediata de los datos"},
+      {text:"La capacidad de escalar horizontalmente"},
+      {text:"El uso de índices secundarios"},
+    ],
+    correct:1,
+    explanation:"<strong>b) La consistencia inmediata es correcta.</strong> El teorema CAP afirma que ante una partición de red, solo podés elegir entre consistencia (todos ven el mismo dato) o disponibilidad (el sistema siempre responde). AP sacrifica la consistencia estricta — acepta consistencia eventual."
+  },
+  {
+    db:"teoria",
+    q:"¿Qué describe mejor el concepto de <strong>consistencia eventual</strong> en sistemas NoSQL?",
+    options:[
+      {text:"Los datos son siempre consistentes al momento de la escritura en todos los nodos"},
+      {text:"El sistema garantiza que todas las lecturas reflejan la escritura más reciente de forma inmediata"},
+      {text:"Dado suficiente tiempo sin nuevas escrituras, todos los nodos convergerán al mismo valor"},
+      {text:"Los datos se replican sincrónicamente antes de confirmar la escritura"},
+    ],
+    correct:2,
+    explanation:"<strong>c) es correcta.</strong> La consistencia eventual no implica caos permanente. La inconsistencia es temporal: sin nuevas escrituras, las réplicas eventualmente sincronizan y convergen al mismo valor. En ese intervalo, dos nodos pueden devolver valores distintos para el mismo dato."
+  },
+  {
+    db:"teoria",
+    q:"¿Cuál afirmación describe correctamente el enfoque <strong>BASE</strong> en comparación con <strong>ACID</strong>?",
+    options:[
+      {text:"BASE garantiza transacciones atómicas distribuidas igual que ACID"},
+      {text:"BASE prioriza disponibilidad y acepta consistencia eventual en lugar de consistencia estricta"},
+      {text:"BASE solo aplica a bases de datos relacionales"},
+      {text:"BASE requiere bloqueos de tabla para asegurar integridad"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> BASE (Basically Available, Soft State, Eventually Consistent) relaja las garantías de ACID a cambio de disponibilidad y escalabilidad. No requiere locks — cada nodo responde siempre aunque el dato no sea el más reciente."
+  },
+  {
+    db:"teoria",
+    q:"¿Cuál fue la razón principal por la que surgieron las bases NoSQL?",
+    options:[
+      {text:"Porque SQL era demasiado difícil de aprender"},
+      {text:"Porque los RDBMS no podían escalar ante el crecimiento masivo de datos — el volumen global se multiplicó x15 en una década"},
+      {text:"Porque las bases relacionales no soportaban JSON"},
+      {text:"Porque NoSQL es más barato de licenciar"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> Los RDBMS escalan verticalmente (más hardware en un nodo), lo cual tiene límites. NoSQL nació para escalar horizontalmente (más nodos) ante el volumen generado por empresas como Facebook e Instagram."
+  },
+
+  // ── Elección de BD ──
+  {
+    db:"teoria",
+    q:`Una plataforma de streaming musical necesita almacenar el historial de reproducciones: <code>user_id</code>, <code>song_id</code>, <code>played_at</code>, <code>duration_seconds</code>. Consulta típica: <em>"canciones que escuchó el usuario X en los últimos 30 días"</em>, ordenadas por fecha. Escrituras: miles por segundo. Disponibilidad: crítica. ¿Qué base recomendarías?`,
+    options:[
+      {text:"MongoDB — soporta documentos flexibles e índices compuestos"},
+      {text:"Cassandra — modelo query-driven, alta disponibilidad y capacidad de escritura masiva encajan perfectamente"},
+      {text:"Neo4j — las reproducciones forman relaciones entre usuarios y canciones"},
+      {text:"Redis — el acceso por user_id es clave-valor puro"},
+    ],
+    correct:1,
+    explanation:"<strong>b) Cassandra es correcta.</strong> El diseño ideal es: <code>PRIMARY KEY (user_id, played_at)</code> — user_id como partition key (consultas por usuario) y played_at como clustering key (rango de fechas + ORDER BY). Cassandra es AP, soporta escrituras masivas sin bottleneck y no tiene punto único de falla."
+  },
+
+  // ── MongoDB estilo parcial ──
+  {
+    db:"mongo",
+    q:`Tenés la colección <code>orders</code>: <code>{ _id, customer_id, status, total, createdAt }</code>. La query más frecuente es:
+<pre>db.orders.find({ customer_id: "C123", status: "pending" })</pre>
+¿Qué índice es más apropiado para optimizar esta consulta?`,
+    options:[
+      {text:"Índice simple en customer_id"},
+      {text:"Índice simple en status"},
+      {text:"Índice compuesto { customer_id: 1, status: 1 }"},
+      {text:"Índice de texto en status"},
+    ],
+    correct:2,
+    explanation:"<strong>c) Índice compuesto es correcto.</strong> La consulta filtra por ambos campos — un índice compuesto cubre exactamente ese patrón. Siguiendo la regla ESR: primero igualdad (customer_id, status). El índice simple en customer_id también ayuda pero el compuesto es más selectivo y eficiente."
+  },
+  {
+    db:"mongo",
+    q:`Al ejecutar <code>.explain("executionStats")</code> obtenés:
+<pre>{
+  "stage": "COLLSCAN",
+  "nReturned": 5,
+  "totalDocsExamined": 980000
+}</pre>
+¿Qué indica este resultado?`,
+    options:[
+      {text:'stage "IXSCAN" — se está usando un índice correctamente'},
+      {text:"Se escaneó toda la colección sin usar índice, examinando 980K docs para devolver solo 5"},
+      {text:"Solo se examinaron los 5 documentos necesarios"},
+      {text:"El índice compuesto funcionó correctamente y es eficiente"},
+    ],
+    correct:1,
+    explanation:'<strong>b) es correcta.</strong> <code>COLLSCAN</code> (Collection Scan) significa que no se usó ningún índice — se leyeron los 980.000 documentos para encontrar 5. Esto es muy costoso. Para corregirlo hay que crear el índice adecuado. Si hubiera índice, el stage sería <code>IXSCAN</code> y totalDocsExamined ≈ nReturned.'
+  },
+  {
+    db:"mongo",
+    q:`Tenés <code>db.customers.find({ country: "AR", tier: "GOLD" }).explain("executionStats")</code>. ¿Cuál opción indica que <strong>NO</strong> se está usando el índice?`,
+    options:[
+      {text:'stage: "IXSCAN"'},
+      {text:'stage: "COLLSCAN"'},
+      {text:"totalKeysExamined > 0"},
+      {text:"nReturned > 0"},
+    ],
+    correct:1,
+    explanation:'<strong>b) es correcta.</strong> <code>COLLSCAN</code> es el indicador claro de que no se usó ningún índice. <code>IXSCAN</code> indica uso de índice. <code>totalKeysExamined > 0</code> también indicaría uso de índice. <code>nReturned</code> solo dice cuántos docs se devolvieron, sin importar si hubo índice.'
+  },
+
+  // ── Grafos estilo parcial ──
+  {
+    db:"grafo",
+    q:"¿Cuál de los siguientes casos de uso es más adecuado para una base de datos de grafos?",
+    options:[
+      {text:"Registro de ventas mensuales"},
+      {text:"Almacenamiento de archivos de texto sin estructura"},
+      {text:"Análisis de relaciones entre usuarios en una red social"},
+      {text:"Cálculo de promedios financieros"},
+    ],
+    correct:2,
+    explanation:"<strong>c) es correcta.</strong> Las bases de grafos brillan cuando los datos son entidades con relaciones complejas entre sí (red social, detección de fraude, motor de recomendaciones). Las ventas mensuales son datos tabulares — SQL o Cassandra serían más eficientes."
+  },
+  {
+    db:"grafo",
+    q:"En una base de datos de grafos, ¿qué se utiliza para almacenar información adicional tanto en nodos como en relaciones?",
+    options:[
+      {text:"Vistas"},
+      {text:"Triggers"},
+      {text:"Propiedades"},
+      {text:"Esquemas rígidos"},
+    ],
+    correct:2,
+    explanation:"<strong>c) Propiedades es correcta.</strong> Tanto los nodos como las relaciones (edges) pueden tener propiedades — pares clave-valor arbitrarios. Por ejemplo, un nodo <code>:Persona</code> puede tener <code>{nombre: 'Ana', edad: 30}</code> y una relación <code>:CONOCE</code> puede tener <code>{desde: 2020}</code>."
+  },
+
+  // ── Práctica estilo parcial ──
+  {
+    db:"practica",
+    q:`La colección <code>employees</code> tiene: <code>{ _id, name, department, salary, hireDate }</code>.<br>
+Querés todos los empleados de <code>"engineering"</code> con salario mayor a 80000, mostrando solo <code>name</code> y <code>salary</code> sin <code>_id</code>. ¿Cuál es correcta?`,
+    options:[
+      {code:`db.employees.find(\n  { department: "engineering", salary: { $gte: 80000 } },\n  { _id: 0, name: 1, salary: 1 }\n)`},
+      {code:`db.employees.find(\n  { department: "engineering", salary: { $gt: 80000 } },\n  { _id: 0, name: 1, salary: 1 }\n)`},
+      {code:`db.employees.find(\n  { name: 1, salary: 1 },\n  { department: "engineering", salary: { $gt: 80000 } }\n)`},
+      {code:`db.employees.find(\n  { department: "engineering" }\n).filter({ salary: { $gt: 80000 } })`},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> El primer argumento es el filtro y el segundo la proyección. <code>$gt</code> excluye el 80000 (mayor estricto). <code>_id: 0</code> es necesario para excluirlo — por defecto siempre se incluye. En c) los argumentos están invertidos. <code>.filter()</code> no existe en el shell de MongoDB."
+  },
+  {
+    db:"practica",
+    q:`Diseñá una tabla Cassandra para consultar <strong>productos por categoría</strong> ordenados por precio descendente. <code>category</code>: partition key, <code>price</code>: clustering key DESC, <code>product_id</code>: identificador adicional. ¿Cuál definición es correcta?`,
+    options:[
+      {code:`CREATE TABLE products_by_category (\n  category   text,\n  price      decimal,\n  product_id uuid,\n  name       text,\n  PRIMARY KEY (category, price)\n) WITH CLUSTERING ORDER BY (price DESC);`},
+      {code:`CREATE TABLE products_by_category (\n  category   text,\n  price      decimal,\n  product_id uuid,\n  name       text,\n  PRIMARY KEY (category, price, product_id)\n) WITH CLUSTERING ORDER BY (price DESC);`},
+      {code:`CREATE TABLE products_by_category (\n  category   text PRIMARY KEY,\n  price      decimal,\n  product_id uuid,\n  name       text\n);`},
+      {code:`CREATE TABLE products_by_category (\n  category   text,\n  price      decimal,\n  product_id uuid,\n  PRIMARY KEY (price, category)\n) WITH CLUSTERING ORDER BY (price DESC);`},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> <code>PRIMARY KEY (category, price, product_id)</code>: category es la partition key, price y product_id son clustering keys (product_id garantiza unicidad dentro de la partición). <code>CLUSTERING ORDER BY (price DESC)</code> ordena físicamente por precio descendente. En d) la partition key y clustering key están invertidas."
+  },
+  {
+    db:"practica",
+    q:`Dada la tabla Cassandra:
+<pre>CREATE TABLE users (
+  user_id uuid PRIMARY KEY,
+  email   text,
+  country text
+);</pre>
+¿Cuál es la mejor interpretación de esta consulta?
+<pre>SELECT user_id, email FROM users
+WHERE country = 'AR' ALLOW FILTERING;</pre>`,
+    options:[
+      {text:"Es eficiente porque ALLOW FILTERING fuerza el uso de índices"},
+      {text:"Cassandra buscará solo en una partición, por lo que es segura"},
+      {text:"Puede ser muy costosa (scan global) porque country no es clave primaria; ALLOW FILTERING permite el filtrado pero no lo optimiza"},
+      {text:"No compila: ALLOW FILTERING solo se permite si hay un índice secundario"},
+    ],
+    correct:2,
+    explanation:"<strong>c) es correcta.</strong> <code>country</code> no es parte de la Primary Key ni tiene índice. Cassandra recorre todas las particiones buscando country = 'AR' — un scatter/gather sobre todo el clúster. <code>ALLOW FILTERING</code> fuerza la ejecución pero puede ser extremadamente lento. La solución correcta sería una tabla <code>users_by_country</code> con <code>country</code> como partition key."
+  },
+  {
+    db:"practica",
+    q:`Una empresa shardea la colección <code>orders</code>: <code>{ _id, customerId, status, orderDate, total }</code> usando la shard key <code>{ status: 1 }</code>. ¿Cuál es el problema más probable?`,
+    options:[
+      {text:"Baja cardinalidad: pocos valores de status generarán hotspots — la mayoría de los datos irá a los mismos pocos shards"},
+      {text:"La clave es demasiado larga para ser eficiente en el hash"},
+      {text:"MongoDB no permite shardear por campos de tipo string"},
+      {text:"El shard key debe coincidir siempre con el _id del documento"},
+    ],
+    correct:0,
+    explanation:"<strong>a) es correcta.</strong> <code>status</code> tiene muy pocos valores distintos (baja cardinalidad). Si hay 3 valores posibles, solo puede haber 3 shards máximo. El 80% de las órdenes probablemente estén en 'delivered', creando un hotspot masivo. Una mejor shard key sería <code>{ customerId: 1 }</code> o <code>{ _id: 1 }</code> que tienen alta cardinalidad."
+  },
+  {
+    db:"practica",
+    q:`Crear tabla <code>orders_by_customer</code> en Cassandra: <code>customer_id</code> como partition key, <code>order_ts</code> como clustering key (fecha DESC), <code>order_id</code> como identificador adicional. ¿Cuál CQL es correcta?`,
+    options:[
+      {code:`CREATE TABLE orders_by_customer (\n  customer_id text,\n  order_ts    timestamp,\n  order_id    uuid,\n  total       decimal,\n  status      text,\n  PRIMARY KEY (customer_id, order_ts, order_id)\n) WITH CLUSTERING ORDER BY (order_ts DESC);`},
+      {code:`CREATE TABLE orders_by_customer (\n  customer_id text,\n  order_ts    timestamp,\n  order_id    uuid PRIMARY KEY,\n  total       decimal,\n  status      text\n);`},
+      {code:`CREATE TABLE orders_by_customer (\n  customer_id text,\n  order_ts    timestamp,\n  order_id    uuid,\n  PRIMARY KEY (order_ts, customer_id)\n) WITH CLUSTERING ORDER BY (order_ts DESC);`},
+      {code:`CREATE TABLE orders_by_customer (\n  customer_id text,\n  order_ts    timestamp,\n  order_id    uuid,\n  PRIMARY KEY ((customer_id, order_ts), order_id)\n) WITH CLUSTERING ORDER BY (order_id DESC);`},
+    ],
+    correct:0,
+    explanation:"<strong>a) es correcta.</strong> <code>PRIMARY KEY (customer_id, order_ts, order_id)</code>: customer_id es la partition key, order_ts y order_id son clustering keys. <code>CLUSTERING ORDER BY (order_ts DESC)</code> ordena las órdenes de más reciente a más antigua dentro de cada cliente. En b) order_id como PK simple no permite las consultas por customer. En c) la partition key y clustering key están invertidas."
+  },
+
 ];
 
 // ──────────────────────────────────────────────
@@ -1155,7 +1380,7 @@ const state = new Array(questions.length).fill(null);
 let current = 0;
 let score   = 0;
 
-const DB_LABELS = { mongo:'MongoDB', cassandra:'Cassandra', neo4j:'Neo4j', teoria:'Teoría' };
+const DB_LABELS = { mongo:'MongoDB', cassandra:'Cassandra', neo4j:'Neo4j', teoria:'Teoría', grafo:'Grafos', practica:'Práctica' };
 
 function escHtml(s){
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
