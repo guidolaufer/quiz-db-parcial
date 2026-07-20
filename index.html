@@ -62,6 +62,11 @@
     .badge.neo4j     { background: #3b2a0f; color: #fcd34d; }
     .badge.grafo     { background: #2d1a4e; color: #d8b4fe; }
     .badge.practica  { background: #2d1b00; color: #fbbf24; }
+    .badge.consenso  { background: #164e4a; color: #5eead4; }
+    .badge.redis     { background: #4c1414; color: #fca5a5; }
+    .badge.hadoop    { background: #422006; color: #fdba74; }
+    .badge.spark     { background: #422f06; color: #fde047; }
+    .badge.poliglota { background: #1e2a4a; color: #a5b4fc; }
 
     .card h2 {
       font-size: clamp(0.9rem, 3.8vw, 1.05rem);
@@ -1371,6 +1376,410 @@ WHERE country = 'AR' ALLOW FILTERING;</pre>`,
     explanation:"<strong>a) es correcta.</strong> <code>PRIMARY KEY (customer_id, order_ts, order_id)</code>: customer_id es la partition key, order_ts y order_id son clustering keys. <code>CLUSTERING ORDER BY (order_ts DESC)</code> ordena las órdenes de más reciente a más antigua dentro de cada cliente. En b) order_id como PK simple no permite las consultas por customer. En c) la partition key y clustering key están invertidas."
   },
 
+  // ══════════════════════════════════════════════════════════
+  // CONSENSO EN BASES NoSQL DISTRIBUIDAS (N / R / W)
+  // ══════════════════════════════════════════════════════════
+  {
+    db:"consenso",
+    q:"En el modelo de consenso de bases NoSQL distribuidas (Dynamo, Cassandra, Riak), ¿qué representa el parámetro <strong>N</strong>?",
+    options:[
+      {text:"La cantidad de nodos que deben confirmar una escritura"},
+      {text:"La cantidad total de copias (réplicas) del dato"},
+      {text:"La cantidad de nodos consultados en cada lectura"},
+      {text:"El número máximo de nodos que pueden fallar"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> <strong>N</strong> es el <em>replication factor</em>: la cantidad total de copias del dato. N=3 significa que cada dato existe en 3 nodos. Los nodos que confirman escritura son <strong>W</strong> y los consultados en lectura son <strong>R</strong>."
+  },
+  {
+    db:"consenso",
+    q:"¿Qué condición sobre R, W y N garantiza <strong>consistencia fuerte</strong> (que toda lectura vea la última escritura)?",
+    options:[
+      {text:"R + W ≤ N"},
+      {text:"R + W > N"},
+      {text:"R = W = 1"},
+      {text:"R = W = N siempre"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> Si <code>R + W > N</code> el conjunto de nodos leídos y el de nodos escritos <strong>se intersecan en al menos un nodo</strong>, por lo que al menos un nodo leído tiene la versión más reciente. Si <code>R + W ≤ N</code> puede no haber intersección → consistencia eventual (lecturas desactualizadas)."
+  },
+  {
+    db:"consenso",
+    q:"¿Por qué <code>R + W > N</code> asegura leer el dato más actual?",
+    options:[
+      {text:"Porque obliga a escribir en todos los nodos"},
+      {text:"Porque garantiza que los conjuntos de lectura y escritura comparten al menos un nodo en común"},
+      {text:"Porque bloquea las lecturas hasta que terminan todas las escrituras"},
+      {text:"Porque replica el dato en más nodos de los que existen"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> Es la <strong>intersección de quórums</strong>: si W nodos confirmaron la escritura y se leen R nodos, con R+W>N necesariamente al menos uno de los nodos leídos pertenece también al conjunto que recibió la última escritura, por lo que tiene la versión actual."
+  },
+  {
+    db:"consenso",
+    q:"Configuración <code>N=3, W=1, R=1</code>. ¿Qué tipo de consistencia ofrece y para qué sirve?",
+    options:[
+      {text:"Consistencia fuerte — ideal para pagos y transacciones"},
+      {text:"Consistencia eventual — se puede leer un nodo que aún no recibió la actualización; útil para likes/views no críticos"},
+      {text:"No permite lecturas ni escrituras si falla un nodo"},
+      {text:"Es inválida porque R y W no pueden valer 1"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> <code>R+W = 2 ≤ 3 = N</code> → <strong>consistencia eventual</strong>. Escritura y lectura son muy rápidas (1 nodo cada una) pero se puede leer un nodo desactualizado. Uso típico: contadores de likes o vistas en redes sociales, donde no es crítico que tarde en propagarse."
+  },
+  {
+    db:"consenso",
+    q:"Configuración <code>N=3, W=3, R=3</code> (fallo crítico). Si <strong>se cae 1 nodo</strong>, ¿qué ocurre?",
+    options:[
+      {text:"El sistema sigue funcionando normalmente"},
+      {text:"No se puede escribir ni leer: alta consistencia pero baja disponibilidad"},
+      {text:"Se pueden hacer lecturas pero no escrituras"},
+      {text:"El dato se pierde permanentemente"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> Con W=3 y R=3 sobre N=3, se necesitan <em>todos</em> los nodos para cada operación. Si cae uno, no se alcanza el quórum ni de escritura ni de lectura. Máxima consistencia (R+W=6>3) pero <strong>disponibilidad nula</strong> ante cualquier falla — refleja el trade-off de CAP."
+  },
+  {
+    db:"consenso",
+    q:"Configuración <code>N=3, W=2, R=2</code>. ¿Qué la hace apropiada para sistemas críticos como pagos?",
+    options:[
+      {text:"Es la más rápida posible porque usa el mínimo de nodos"},
+      {text:"R+W=4>3 da consistencia fuerte, y aun cayendo 1 nodo se puede seguir leyendo y escribiendo (tolerancia a fallos)"},
+      {text:"No replica los datos, evitando inconsistencias"},
+      {text:"Prioriza disponibilidad sobre consistencia"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> El quórum clásico <code>N=3, W=2, R=2</code> cumple <code>R+W=4>3</code> (consistencia fuerte) y además tolera la caída de 1 nodo: quedan 2 disponibles, suficientes para W=2 y R=2. Equilibrio entre consistencia y disponibilidad, muy usado en sistemas críticos."
+  },
+
+  // ══════════════════════════════════════════════════════════
+  // BASES DE DATOS CLAVE-VALOR / REDIS (TEORÍA)
+  // ══════════════════════════════════════════════════════════
+  {
+    db:"redis",
+    q:"¿Cuál es la característica que define a una base de datos <strong>Clave-Valor</strong>?",
+    options:[
+      {text:"Organiza los datos en tablas con columnas y restricciones"},
+      {text:"Es el modelo NoSQL más simple: cada valor se almacena y recupera mediante una clave única (similar a un array o diccionario)"},
+      {text:"Almacena documentos JSON con esquemas anidados y consultas complejas"},
+      {text:"Modela los datos como nodos y relaciones (grafo)"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> Las bases Clave-Valor son las NoSQL <strong>más simples</strong>: asocian un valor a una clave única dentro de un espacio de nombres, como un array asociativo. No hay tablas, joins, claves ajenas ni un lenguaje de consulta rico tipo SQL."
+  },
+  {
+    db:"redis",
+    q:"¿Qué se puede almacenar como <strong>valor</strong> en una base Clave-Valor, y qué implica para el desarrollador?",
+    options:[
+      {text:"Solo cadenas de texto; el motor valida el tipo automáticamente"},
+      {text:"Cualquier tipo (texto, números, imágenes, binarios); como no se valida el tipo, el control de datos queda en la aplicación"},
+      {text:"Solo tipos numéricos, para permitir operaciones atómicas"},
+      {text:"Únicamente documentos con esquema predefinido"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> Ofrecen gran flexibilidad: el valor puede ser texto, números, imágenes u objetos binarios de distinto tamaño. Como <strong>no comprueban el tipo de dato</strong>, es responsabilidad del desarrollador implementar las validaciones en la aplicación."
+  },
+  {
+    db:"redis",
+    q:"En una base Clave-Valor, ¿para qué sirve un <strong>espacio de nombres</strong> (namespace)?",
+    options:[
+      {text:"Para definir relaciones entre claves, como las claves ajenas"},
+      {text:"Es un ámbito donde las claves deben ser únicas; es análogo a un esquema en una base relacional"},
+      {text:"Para ordenar automáticamente las claves alfabéticamente"},
+      {text:"Para comprimir los valores en disco"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> Las claves deben ser únicas <em>dentro de un mismo espacio de nombres</em>. Algunos motores permiten varios namespaces en la misma BD, lo que es <strong>análogo a los esquemas</strong> relacionales, sobre todo combinado con convenciones de nombres de clave (p.ej. prefijo <code>cli1.</code>, <code>alm1.</code>)."
+  },
+  {
+    db:"redis",
+    q:"¿Qué caracteriza a <strong>Redis</strong> como base de datos Clave-Valor?",
+    options:[
+      {text:"Almacena los datos en disco y prioriza la consistencia a costa de la velocidad"},
+      {text:"Almacena los datos en memoria (RAM), logrando operaciones de lectura/escritura muy rápidas, con persistencia opcional a disco"},
+      {text:"Es una base relacional con soporte para SQL completo"},
+      {text:"Requiere definir un esquema fijo antes de insertar datos"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> Redis mantiene <strong>todos los datos en memoria</strong>, lo que le da altísima velocidad. Opcionalmente puede persistir a disco mediante snapshots (RDB) o un log de comandos (AOF). Es single-threaded y sus comandos son atómicos."
+  },
+  {
+    db:"redis",
+    q:"Redis es <strong>single-threaded</strong>. ¿Qué beneficio directo trae esto?",
+    options:[
+      {text:"Puede usar todos los cores del servidor en paralelo"},
+      {text:"Ejecuta un comando a la vez, garantizando que sus operaciones sean atómicas (sin condiciones de carrera entre comandos)"},
+      {text:"Permite transacciones ACID distribuidas completas"},
+      {text:"Duplica automáticamente los datos en varios nodos"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> Al ser single-threaded, Redis <strong>ejecuta un único comando por vez</strong>, por lo que cada comando es atómico por naturaleza — no hay solapamiento entre operaciones concurrentes. Esto simplifica, por ejemplo, incrementar contadores o encolar ítems sin race conditions."
+  },
+  {
+    db:"redis",
+    q:"¿Cuál es un <strong>caso de uso típico</strong> de Redis?",
+    options:[
+      {text:"Almacenamiento primario de datos transaccionales críticos con integridad referencial"},
+      {text:"Caché de consultas costosas, sesiones de usuario, rankings/leaderboards y sistemas en tiempo real"},
+      {text:"Data warehouse para análisis histórico de petabytes"},
+      {text:"Modelado de redes sociales como grafos de relaciones"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> Por su velocidad en memoria, Redis se usa para <strong>caché</strong> (consultas costosas), sesiones de usuario, rankings/leaderboards y sistemas de baja latencia en tiempo real. Empresas como Twitter, Instagram, GitHub, Netflix y Uber lo usan para caché, timelines y geolocalización."
+  },
+  {
+    db:"redis",
+    q:"Además de simples strings, Redis soporta estructuras de datos como Listas, Hashes, Sets y Sorted Sets. ¿Qué ventaja aporta esto frente a un Clave-Valor puro?",
+    options:[
+      {text:"Permite modelar entidades y estructuras más ricas (colas, rankings, conjuntos, objetos) sin dejar de ser Clave-Valor"},
+      {text:"Convierte a Redis en una base relacional"},
+      {text:"Obliga a definir un esquema rígido por adelantado"},
+      {text:"Elimina la necesidad de mantener los datos en memoria"},
+    ],
+    correct:0,
+    explanation:"<strong>a) es correcta.</strong> Redis va más allá del Clave-Valor mínimo: un <em>Hash</em> modela una entidad/objeto por campos, una <em>List</em> sirve como cola o pila, un <em>Set</em> para pertenencia y deduplicación, y un <em>Sorted Set</em> para leaderboards. Esto permite estructuras de más alto nivel manteniendo el modelo clave-valor."
+  },
+
+  // ══════════════════════════════════════════════════════════
+  // HADOOP / HDFS / MapReduce (TEORÍA)
+  // ══════════════════════════════════════════════════════════
+  {
+    db:"hadoop",
+    q:"¿Qué es <strong>Hadoop</strong>?",
+    options:[
+      {text:"Una base de datos relacional distribuida con soporte SQL"},
+      {text:"Un framework de código abierto para almacenamiento y procesamiento a gran escala de datos sobre clusters de hardware básico (commodity)"},
+      {text:"Un lenguaje de consulta para bases NoSQL"},
+      {text:"Un motor de caché en memoria como Redis"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> Hadoop es un <strong>framework open source</strong> para el almacenamiento y procesamiento distribuido de conjuntos de datos masivos sobre clusters de <em>hardware básico</em>. Es una implementación basada en Google File System (GFS) y MapReduce, creada por Doug Cutting y Mike Cafarella (2005) y donada a Apache en 2006."
+  },
+  {
+    db:"hadoop",
+    q:"¿Cuáles son los <strong>beneficios principales</strong> que ofrece Hadoop?",
+    options:[
+      {text:"Consistencia fuerte ACID y transacciones distribuidas"},
+      {text:"Almacenamiento distribuido tolerante a fallos, procesamiento paralelo, escalabilidad y bajo costo (hardware básico)"},
+      {text:"Baja latencia para consultas en tiempo real sobre datos en memoria"},
+      {text:"Un esquema relacional rígido que garantiza integridad referencial"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> Hadoop provee almacenamiento redundante y <strong>tolerante a fallas</strong>, un marco de <strong>cómputo paralelo</strong>, y es <strong>escalable, confiable, económico y flexible</strong>. El programador se despreocupa de dónde está el archivo, cómo dividir el cálculo o cómo manejar las fallas de hardware."
+  },
+  {
+    db:"hadoop",
+    q:"¿Qué tipo de datos y volúmenes está pensado para manejar Hadoop (Big Data)?",
+    options:[
+      {text:"Solo datos estructurados de pequeño tamaño que caben en una máquina"},
+      {text:"Grandes volúmenes (escala de petabytes) de datos estructurados, semi-estructurados y no estructurados — las 'V' de Big Data"},
+      {text:"Únicamente datos numéricos para cálculo científico"},
+      {text:"Solo imágenes y video"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> Hadoop está diseñado para <strong>Big Data</strong>, caracterizado por las 'V': <em>Volumen</em> (petabytes), <em>Variedad</em> (estructurados, semi-estructurados y no estructurados), <em>Velocidad</em> y <em>Veracidad</em>. Maneja datos demasiado grandes o complejos para las herramientas tradicionales."
+  },
+  {
+    db:"hadoop",
+    q:"En <strong>HDFS</strong> (Hadoop Distributed File System) con arquitectura maestro-esclavo, ¿cuál es el rol del <strong>NameNode</strong>?",
+    options:[
+      {text:"Almacena físicamente los bloques de datos y ejecuta la replicación"},
+      {text:"Es el maestro: gestiona el espacio de nombres del sistema de archivos y sabe en qué DataNodes está cada bloque y sus réplicas"},
+      {text:"Ejecuta las tareas Map y Reduce"},
+      {text:"Es una réplica de respaldo que solo se activa si el cluster falla"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> El <strong>NameNode</strong> es el nodo maestro: gestiona el <em>namespace</em> del filesystem y la asignación de bloques (sabe qué bloques y réplicas hay y dónde). Los <strong>DataNodes</strong> son los esclavos que almacenan los bloques y hacen la replicación. Al ser único, el NameNode es un potencial punto único de falla."
+  },
+  {
+    db:"hadoop",
+    q:"En HDFS los archivos se dividen en <strong>bloques</strong> (por defecto 128 MB en Hadoop 2.x), mucho más grandes que en un filesystem común. ¿Por qué?",
+    options:[
+      {text:"Para desperdiciar menos espacio en disco"},
+      {text:"Para minimizar el overhead: como el tiempo de búsqueda (seek) en disco es casi constante, bloques grandes hacen que domine la transferencia y no la búsqueda; además son fáciles de replicar y balancear"},
+      {text:"Porque los discos no pueden manejar bloques pequeños"},
+      {text:"Para que cada bloque contenga un archivo completo"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> Con bloques grandes se <strong>minimiza el overhead del tiempo de búsqueda</strong> (seek) frente al de transferencia, y se aprovecha mejor el ancho de banda del disco. Además, un archivo puede ser más grande que un disco, y los bloques de tamaño fijo son fáciles de gestionar, replicar y balancear."
+  },
+  {
+    db:"hadoop",
+    q:"¿Cómo logra HDFS ser <strong>tolerante a fallos</strong> ante la caída de un DataNode?",
+    options:[
+      {text:"Guardando todos los datos en un único servidor de gama alta muy confiable"},
+      {text:"Replicando cada bloque en varios nodos (factor de réplica, típicamente 3); si un nodo cae, el NameNode replica los bloques perdidos en otros nodos"},
+      {text:"Deteniendo el cluster hasta que el nodo vuelva a estar disponible"},
+      {text:"Comprimiendo los datos para que ocupen menos"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> HDFS asume que el hardware básico <strong>va a fallar</strong>, por eso <strong>replica cada bloque</strong> en varios nodos (factor de réplica). Si un DataNode se cae, el NameNode detecta los bloques faltantes y los vuelve a replicar en otros nodos, manteniendo el almacenamiento confiable."
+  },
+  {
+    db:"hadoop",
+    q:"¿Qué es <strong>MapReduce</strong> y cuál es su idea central?",
+    options:[
+      {text:"Un lenguaje de consulta similar a SQL para HDFS"},
+      {text:"Un paradigma de procesamiento paralelo (funciones Map y Reduce) cuya idea es 'llevar el cálculo a los datos' en lugar de mover los datos"},
+      {text:"Un sistema de caché en memoria para acelerar lecturas"},
+      {text:"Un protocolo de replicación entre DataNodes"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> MapReduce es el modelo de <strong>procesamiento paralelo</strong> de Hadoop: la fase <em>Map</em> transforma <code>(k1,v1)→list(k2,v2)</code> y la fase <em>Reduce</em> agrega <code>(k2,list(v2))→list(v3)</code>. Su idea clave es <strong>llevar el cómputo a los datos</strong> (ejecutar el procesamiento donde están los bloques), reduciendo el movimiento de datos por la red."
+  },
+  {
+    db:"hadoop",
+    q:"En el ecosistema Hadoop, ¿qué es <strong>Hive</strong>?",
+    options:[
+      {text:"Un sistema de mensajería tipo cola pub/sub"},
+      {text:"Una capa de data warehouse sobre Hadoop que ofrece HiveQL, un lenguaje similar a SQL que se traduce a tareas de procesamiento (MapReduce/Tez/Spark)"},
+      {text:"Un gestor de recursos del cluster"},
+      {text:"Un motor de machine learning"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> <strong>Hive</strong> (originado en Facebook) provee facilidades de <em>data warehouse</em> sobre Hadoop y un lenguaje de consultas <strong>HiveQL</strong> muy parecido a SQL, que se ejecuta como tareas MapReduce/Tez/Spark usando HDFS para el almacenamiento. Permite explotar los datos sin escribir MapReduce a mano."
+  },
+
+  // ══════════════════════════════════════════════════════════
+  // APACHE SPARK (TEORÍA)
+  // ══════════════════════════════════════════════════════════
+  {
+    db:"spark",
+    q:"¿Qué es <strong>Apache Spark</strong>?",
+    options:[
+      {text:"Un sistema de archivos distribuido que reemplaza a HDFS"},
+      {text:"Un motor unificado de análisis para procesamiento de datos a gran escala, más rápido que MapReduce"},
+      {text:"Una base de datos Clave-Valor en memoria"},
+      {text:"Un lenguaje de consulta para grafos"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> Spark es un <strong>motor unificado de analytics</strong> para procesamiento de datos a gran escala. Es una extensión del ecosistema Hadoop que ofrece mucha más velocidad y flexibilidad que MapReduce, y puede correr sobre Hadoop, Mesos, Kubernetes, standalone o en la nube."
+  },
+  {
+    db:"spark",
+    q:"¿Cuál es el <strong>beneficio principal</strong> de Spark frente a MapReduce de Hadoop?",
+    options:[
+      {text:"Solo funciona con datos estructurados"},
+      {text:"Procesa datos en memoria (in-memory) a lo largo del cluster, siendo mucho más rápido, con APIs de alto nivel en varios lenguajes"},
+      {text:"Elimina la necesidad de un cluster"},
+      {text:"Garantiza transacciones ACID sobre disco"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> La idea central de Spark es crear un gran dataset <strong>en memoria</strong> a lo largo del cluster (mientras HDFS distribuye un filesystem, Spark distribuye almacenamiento en RAM). Esto lo hace mucho <strong>más rápido</strong> que MapReduce y generaliza el modelo Map/Reduce a pipelines de datos complejos. Ofrece APIs en Java, Python, R y Scala."
+  },
+  {
+    db:"spark",
+    q:"¿Qué es un <strong>RDD</strong> (Resilient Distributed Dataset) en Spark?",
+    options:[
+      {text:"Una tabla relacional con esquema fijo almacenada en disco"},
+      {text:"Una colección inmutable de elementos, particionada entre los nodos y procesable en paralelo, que se recupera automáticamente ante fallos de nodos"},
+      {text:"Un archivo de configuración del cluster"},
+      {text:"Un índice para acelerar consultas SQL"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> El <strong>RDD</strong> es la abstracción base de Spark: una colección <strong>inmutable</strong> de elementos, <strong>particionada</strong> entre los nodos para procesarse en paralelo (posiblemente en memoria) y con <strong>recuperación automática ante fallos</strong> de nodo. Es parte de la API core desde la primera versión, en todos los lenguajes."
+  },
+  {
+    db:"spark",
+    q:"¿Qué tipos de estructuras de datos maneja Spark para trabajar con colecciones distribuidas?",
+    options:[
+      {text:"Solo RDDs"},
+      {text:"RDD (colección genérica), Dataset (tipado, Java/Scala) y DataFrame (como una tabla con columnas nombradas, similar a una tabla relacional)"},
+      {text:"Únicamente tablas SQL"},
+      {text:"Solo documentos JSON"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> Spark ofrece tres <em>data holders</em>: <strong>RDD</strong> (colección distribuida genérica), <strong>Dataset</strong> (distribuido y fuertemente tipado, solo Java/Scala) y <strong>DataFrame</strong> (como un Dataset pero organizado en <em>columnas nombradas</em>, similar a una tabla en una BD relacional, disponible en todos los lenguajes)."
+  },
+  {
+    db:"spark",
+    q:"Spark usa <strong>lazy evaluation</strong> (evaluación perezosa) y distingue transformaciones de acciones. ¿Qué significa esto?",
+    options:[
+      {text:"Cada operación se ejecuta inmediatamente al escribirla"},
+      {text:"Las transformaciones solo definen un plan y no se computan hasta que una acción dispara la evaluación (cuando realmente se necesita el resultado)"},
+      {text:"Spark descarta los datos que no se usan en 1 segundo"},
+      {text:"Las acciones no producen ningún resultado"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> Con <strong>lazy evaluation</strong>, las <em>transformaciones</em> (map, filter, join…) solo construyen un plan de ejecución (un DAG) y no se ejecutan de inmediato. Recién una <em>acción</em> (collect, count, reduce, save…) dispara el cómputo real. Esto permite optimizar el plan completo antes de ejecutarlo."
+  },
+  {
+    db:"spark",
+    q:"¿Qué herramientas de alto nivel integra Spark, mostrando su carácter de motor 'general'?",
+    options:[
+      {text:"Solo procesamiento batch"},
+      {text:"Spark SQL, MLlib (machine learning), Spark Streaming y GraphX — combinando SQL, ML, streaming y grafos en un mismo motor"},
+      {text:"Únicamente un cliente de línea de comandos"},
+      {text:"Solo conectores para bases relacionales"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> La <em>generality</em> de Spark viene de sus herramientas de alto nivel: <strong>Spark SQL</strong> (interfaz SQL sobre DataFrames), <strong>MLlib</strong> (machine learning), <strong>Spark Streaming</strong> (datos en tiempo real) y <strong>GraphX</strong> (grafos). Se pueden combinar streaming, ML, SQL y analytics en la misma aplicación."
+  },
+
+  // ══════════════════════════════════════════════════════════
+  // PERSISTENCIA POLÍGLOTA (TEORÍA)
+  // ══════════════════════════════════════════════════════════
+  {
+    db:"poliglota",
+    q:"¿Qué es la <strong>persistencia políglota</strong>?",
+    options:[
+      {text:"Usar una única base de datos relacional para toda la aplicación"},
+      {text:"Usar distintas tecnologías de bases de datos, cada una elegida según el tipo de dato y el patrón de acceso que mejor resuelve"},
+      {text:"Traducir automáticamente consultas SQL a varios idiomas"},
+      {text:"Replicar la misma base en múltiples regiones"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> La persistencia políglota consiste en <strong>combinar varias tecnologías de almacenamiento</strong> dentro de una misma solución, eligiendo para cada necesidad la base que mejor se adapta (relacional para datos estructurados, NoSQL para no estructurados, caché en memoria, etc.)."
+  },
+  {
+    db:"poliglota",
+    q:"¿Cuál es la <strong>ventaja</strong> principal de aplicar persistencia políglota?",
+    options:[
+      {text:"Reduce a cero la complejidad de la arquitectura"},
+      {text:"Permite aprovechar las fortalezas de cada base según los datos, logrando aplicaciones más eficientes, escalables y flexibles"},
+      {text:"Elimina la necesidad de sincronizar datos"},
+      {text:"Garantiza que todos los datos usen el mismo esquema"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> Al usar cada base para lo que mejor hace (p.ej. relacional para transacciones, NoSQL para datos no estructurados, Redis para caché), se obtienen aplicaciones <strong>más eficientes, escalables y flexibles</strong>. El costo es mayor complejidad, que hay que justificar frente al beneficio."
+  },
+  {
+    db:"poliglota",
+    q:"Un ejemplo real de persistencia políglota es Netflix. ¿Cómo la aplica?",
+    options:[
+      {text:"Usa una sola base Oracle para todo"},
+      {text:"Combina varias tecnologías: MySQL, Cassandra y Elasticsearch (para búsquedas), según cada necesidad"},
+      {text:"Solo usa Redis en memoria"},
+      {text:"Usa exclusivamente MongoDB"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> Netflix combina <strong>MySQL, Cassandra y Elasticsearch</strong> (búsquedas). Otros ejemplos: Amazon usa DynamoDB + RDS + Redshift; eBay usa Oracle + MongoDB + Cassandra; LinkedIn usa MySQL + Voldemort + Espresso. Cada tecnología cubre un patrón de acceso distinto."
+  },
+  {
+    db:"poliglota",
+    q:"¿Cuál es un <strong>riesgo o desafío</strong> clave de la persistencia políglota que hay que gestionar?",
+    options:[
+      {text:"Que las consultas SQL dejen de funcionar"},
+      {text:"La integración y sincronización de datos entre almacenes, y la complejidad añadida (posibles cuellos de botella si no se gestiona bien)"},
+      {text:"Que se pierda la posibilidad de escalar horizontalmente"},
+      {text:"Que los datos no se puedan replicar"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> El principal desafío es la <strong>integración y sincronización</strong> de datos entre las distintas tecnologías (p.ej. el perfil de usuario en una base debe vincularse con su actividad en otra), sumado a la <strong>complejidad</strong>. Buenas prácticas: simplificar (no agregar bases innecesarias), sincronizar bien y supervisar el rendimiento para evitar cuellos de botella."
+  },
+  {
+    db:"poliglota",
+    q:"El patrón <strong>CQRS</strong> (Command Query Responsibility Segregation), usado junto a persistencia políglota, propone:",
+    options:[
+      {text:"Guardar todo el estado en un único modelo compartido"},
+      {text:"Separar las operaciones de lectura y de escritura en modelos distintos, optimizando cada uno para su propósito"},
+      {text:"Eliminar las consultas y trabajar solo con eventos"},
+      {text:"Usar una sola base de datos para comandos y consultas"},
+    ],
+    correct:1,
+    explanation:"<strong>b) es correcta.</strong> <strong>CQRS</strong> separa las operaciones de <em>comando</em> (escritura) y de <em>consulta</em> (lectura) en modelos diferentes, optimizando cada uno por separado. Mejora rendimiento y escalabilidad al permitir manejar lecturas y escrituras de forma independiente — encaja bien con usar distintas bases para cada lado."
+  },
+
 ];
 
 // ──────────────────────────────────────────────
@@ -1380,7 +1789,7 @@ const state = new Array(questions.length).fill(null);
 let current = 0;
 let score   = 0;
 
-const DB_LABELS = { mongo:'MongoDB', cassandra:'Cassandra', neo4j:'Neo4j', teoria:'Teoría', grafo:'Grafos', practica:'Práctica' };
+const DB_LABELS = { mongo:'MongoDB', cassandra:'Cassandra', neo4j:'Neo4j', teoria:'Teoría', grafo:'Grafos', practica:'Práctica', consenso:'Consenso NoSQL', redis:'Clave-Valor / Redis', hadoop:'Hadoop', spark:'Apache Spark', poliglota:'Persist. Políglota' };
 
 function escHtml(s){
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
